@@ -9,6 +9,7 @@ const COT = require('./public/logik.js');
 
 const PORT = process.env.PORT || 10000;
 const OEFFENTLICH = path.join(__dirname, 'public');
+const DREI = require.resolve('three').replace(/three\.cjs$/, 'three.module.min.js');
 const TYPEN = { '.html': 'text/html; charset=utf-8', '.js': 'application/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8',
   '.png': 'image/png', '.svg': 'image/svg+xml', '.ico': 'image/x-icon', '.json': 'application/json; charset=utf-8', '.woff2': 'font/woff2' };
 
@@ -18,8 +19,9 @@ const server = http.createServer((req, res) => {
   if (pfad === '/healthz') { res.writeHead(200, { 'Content-Type': 'text/plain' }); return res.end('ok'); }
   if (pfad === '/api/status') { res.writeHead(200, { 'Content-Type': 'application/json' }); return res.end(JSON.stringify({ online: wss.clients.size, kaempfe: kaempfe.size, wartend: warteschlange.length })); }
   if (pfad.endsWith('/')) pfad += 'index.html';
-  const datei = path.join(OEFFENTLICH, path.normalize(pfad));
-  if (!datei.startsWith(OEFFENTLICH)) { res.writeHead(403); return res.end(); }
+  // Three.js kommt aus node_modules (wird von Render per npm install geholt)
+  const datei = pfad === '/vendor/three.module.min.js' ? DREI : path.join(OEFFENTLICH, path.normalize(pfad));
+  if (datei !== DREI && !datei.startsWith(OEFFENTLICH)) { res.writeHead(403); return res.end(); }
   fs.readFile(datei, (fehler, inhalt) => {
     if (fehler) { res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' }); return res.end('Nicht gefunden'); }
     res.writeHead(200, { 'Content-Type': TYPEN[path.extname(datei)] || 'application/octet-stream', 'Cache-Control': 'no-cache' });

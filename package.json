@@ -4,7 +4,14 @@
   "private": true,
   "description": "Clash of Taddel – Echtzeit-Kartenduell mit Figuren aus dem Multiversum von Serien, Filmen und Videospielen",
   "main": "server.js",
-  "scripts": { "start": "node server.js" },
-  "dependencies": { "ws": "^8.18.0" },
-  "engines": { "node": ">=18" }
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "three": "^0.169.0",
+    "ws": "^8.18.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
 }

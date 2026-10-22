@@ -75,7 +75,7 @@
     turm(team, art, x, y) {
       const d = TUERME[art];
       const e = { id: ++this.nid, team, key: art, kind: 'tower', x, y, r: d.r, hp: d.hp, max: d.hp, dmg: d.dmg, hs: d.hs, rng: d.rng,
-        tg: 'all', cd: 0, stun: 0, slow: 0, rage: 0, deploy: 0, aktiv: art === 'princess' };
+        tg: 'all', cd: 0, stun: 0, slow: 0, rage: 0, angriff: 0, deploy: 0, aktiv: art === 'princess', ziel: null };
       this.ents.push(e); return e;
     }
     restZeit() { return this.verl ? Math.max(0, SPIELZEIT + VERLAENGERUNG - this.zeit) : Math.max(0, SPIELZEIT - this.zeit); }
@@ -116,7 +116,7 @@
       const k = KARTEN[key];
       const e = { id: ++this.nid, team, key, kind: k.t === 'building' ? 'building' : 'troop', x: klemmen(x, 0.4, W - 0.4), y: klemmen(y, 0.4, H - 0.4),
         r: k.r || 0.45, hp: k.hp, max: k.hp, dmg: k.dmg || 0, hs: k.hs || 1, rng: k.rng || 0, tg: k.tg || 'ground', fly: !!k.fly,
-        cd: 0, stun: 0, slow: 0, rage: 0, deploy: k.t === 'building' ? 0.6 : 1, ziel: null, lade: 0, ramp: 0, strahl: 0, spawnT: k.every || 0 };
+        cd: 0, stun: 0, slow: 0, rage: 0, angriff: 0, deploy: k.t === 'building' ? 0.6 : 1, ziel: null, lade: 0, ramp: 0, strahl: 0, spawnT: k.every || 0 };
       this.ents.push(e); return e;
     }
 
@@ -209,6 +209,7 @@
 
     schiessen(u, ziel) {
       const k = KARTEN[u.key] || {};
+      u.angriff = 0.35;
       if (u.kind === 'tower' || k.proj) {
         this.geschosse.push({ team: u.team, x: u.x, y: u.y - (u.kind === 'tower' ? 0.6 : 0), ziel, tx: ziel.x, ty: ziel.y, v: u.kind === 'tower' ? 14 : 11,
           dmg: u.dmg, splash: k.splash || 0, tg: u.tg, col: u.kind === 'tower' ? '#fff3e0' : k.proj, key: u.kind === 'tower' ? u.key : u.key,
@@ -255,6 +256,7 @@
         if (u.slow > 0) u.slow -= dt;
         if (u.rage > 0) u.rage -= dt;
         if (u.strahl > 0) u.strahl -= dt;
+        if (u.angriff > 0) u.angriff -= dt;
         const k = KARTEN[u.key] || {};
         if (u.deploy > 0) {
           u.deploy -= dt;
@@ -281,7 +283,7 @@
         if (d <= u.rng) {
           if (k.beam) {
             if (u.strahlZiel !== z.id) { u.strahlZiel = z.id; u.ramp = 0; }
-            u.ramp += dt * tempo; u.strahl = 0.15;
+            u.ramp += dt * tempo; u.strahl = 0.15; u.angriff = 0.2;
             if (u.cd <= 0) { u.cd = u.hs; this.schaden(z, u.ramp < 2 ? 30 : u.ramp < 4 ? 95 : 300); }
           } else if (k.charge) {
             if (u.lade >= u.hs) { u.lade = 0; this.schiessen(u, z); }
@@ -366,8 +368,8 @@
       return {
         z: r1(this.zeit), v: this.verl ? 1 : 0, k: this.kronen,
         e: this.ents.map(e => [e.id, e.key, e.team, r1(e.x), r1(e.y), Math.max(0, Math.round(e.hp)), e.max, e.r,
-          (e.fly ? 1 : 0) | (e.deploy > 0 ? 2 : 0) | (e.stun > 0 ? 4 : 0) | (e.aktiv ? 8 : 0) | (e.strahl > 0 ? 16 : 0) | (e.rage > 0 ? 32 : 0) | (e.slow > 0 ? 64 : 0),
-          e.strahl > 0 && e.ziel ? [r1(e.ziel.x), r1(e.ziel.y)] : 0, e.lade && KARTEN[e.key].charge ? r1(e.lade / e.hs) : 0]),
+          (e.fly ? 1 : 0) | (e.deploy > 0 ? 2 : 0) | (e.stun > 0 ? 4 : 0) | (e.aktiv ? 8 : 0) | (e.strahl > 0 ? 16 : 0) | (e.rage > 0 ? 32 : 0) | (e.slow > 0 ? 64 : 0) | (e.angriff > 0 ? 128 : 0),
+          e.ziel && e.ziel.hp > 0 ? [r1(e.ziel.x), r1(e.ziel.y)] : 0, e.lade && KARTEN[e.key].charge ? r1(e.lade / e.hs) : 0]),
         g: this.geschosse.map(g => [r1(g.x), r1(g.y), g.col || '#fff']),
         zo: this.zonen.map(z => [r1(z.x), r1(z.y), z.rad, z.team])
       };
