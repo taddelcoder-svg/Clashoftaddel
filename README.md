@@ -5,7 +5,11 @@
 
 - **Kampf gegen Computer** – Trophäen sammeln, 6 Arenen freischalten, neue Karten bekommen
 - **Online-Duell** – zufälliger Gegner oder Raum-Code für Freunde; der Server rechnet das Spiel (keine Schummelei)
-- **Deck-Bau** – 25 Karten: Truppen, Gebäude und Zauber
+- **Deck-Bau** – 39 Karten (Truppen, Gebäude, Zauber), 3 Deck-Plätze, Karten-Level bis 9
+- **Fortschritt wie im Original** – Truhen mit Freischalt-Zeit, Gratis- und Kronentruhe, Gold & Edelsteine (kein Echtgeld),
+  Königslevel, Trophäenpfad, tägliche Aufgaben, Shop mit Tagesangeboten
+- **Ereignisse** – Dreifach-Elixier, Plötzlicher Tod, Spiegel-Duell, Zufallsdeck, Trainingslager (gegen Computer oder online)
+- **Profil** – Statistiken, Lieblingskarte, Kampfprotokoll
 
 ## Starten
 ```

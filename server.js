@@ -30,7 +30,7 @@ const server = http.createServer((req, res) => {
 });
 
 const wss = new WebSocketServer({ server, maxPayload: 4096 });
-const warteschlange = [];          // Spieler, die ein zufälliges Duell suchen
+const warteschlange = [];          // Spieler, die ein zufälliges Duell suchen (ws.modus = gewünschter Spielmodus)
 const raeume = new Map();          // Code -> wartender Spieler (Freundes-Duell)
 const kaempfe = new Set();
 
@@ -43,13 +43,18 @@ function austragen(ws) {
   for (const [c, w] of raeume) if (w === ws) raeume.delete(c);
 }
 
-function kampfStarten(a, b) {
+const zufallsDeck = () => COT.SPIELBAR.slice().sort(() => Math.random() - 0.5).slice(0, 8);
+function kampfStarten(a, b, modus) {
   austragen(a); austragen(b);
-  const sim = new COT.Sim([a.info.deck, b.info.deck], [a.info.stufen, b.info.stufen]);
+  modus = COT.MODI[modus] && modus !== 'training' ? modus : 'normal';
+  let decks = [a.info.deck, b.info.deck], stufen = [a.info.stufen, b.info.stufen];
+  if (modus === 'spiegel') { const d = Math.random() < 0.5 ? a.info : b.info; decks = [d.deck, d.deck]; stufen = [d.stufen, d.stufen]; }
+  if (modus === 'zufall') { decks = [zufallsDeck(), zufallsDeck()]; stufen = [{}, {}]; }
+  const sim = new COT.Sim(decks, stufen, { modus, koenig: [a.info.koenig, b.info.koenig] });
   const k = { sim, spieler: [a, b], takt: 0, fertig: false };
   a.kampf = k; a.team = 0; b.kampf = k; b.team = 1;
   kaempfe.add(k);
-  for (const ws of k.spieler) sende(ws, { t: 'start', team: ws.team, gegner: { name: k.spieler[1 - ws.team].info.name, troph: k.spieler[1 - ws.team].info.troph } });
+  for (const ws of k.spieler) { const g = k.spieler[1 - ws.team].info; sende(ws, { t: 'start', team: ws.team, modus, gegner: { name: g.name, troph: g.troph, koenig: g.koenig } }); }
   k.uhr = setInterval(() => kampfTakt(k), 1000 / 30);
 }
 
@@ -77,21 +82,24 @@ wss.on('connection', ws => {
     if (m.t === 'hallo') {
       const deck = COT.deckPruefen(m.deck), stufen = {};
       for (const k of deck) stufen[k] = Math.max(1, Math.min(COT.MAX_STUFE, Math.floor(+(m.stufen && m.stufen[k]) || 1)));
-      ws.info = { name: sauber(m.name), troph: Math.max(0, Math.min(99999, Math.floor(+m.troph || 0))), deck, stufen };
+      ws.info = { name: sauber(m.name), troph: Math.max(0, Math.min(99999, Math.floor(+m.troph || 0))), deck, stufen,
+        koenig: Math.max(1, Math.min(COT.MAX_KOENIG, Math.floor(+m.koenig || 1))) };
       return;
     }
     if (!ws.info) return;
     if (m.t === 'suche' && !ws.kampf) {
       austragen(ws);
-      const gegner = warteschlange.find(w => w !== ws && w.readyState === 1);
-      if (gegner) kampfStarten(gegner, ws); else { warteschlange.push(ws); sende(ws, { t: 'warte' }); }
+      ws.modus = COT.MODI[m.modus] ? String(m.modus) : 'normal';
+      const gegner = warteschlange.find(w => w !== ws && w.readyState === 1 && w.modus === ws.modus);
+      if (gegner) kampfStarten(gegner, ws, ws.modus); else { warteschlange.push(ws); sende(ws, { t: 'warte' }); }
     } else if (m.t === 'raum' && !ws.kampf) {
       austragen(ws);
+      ws.modus = COT.MODI[m.modus] ? String(m.modus) : 'normal';
       const c = raumCode(); raeume.set(c, ws); sende(ws, { t: 'code', code: c });
     } else if (m.t === 'beitreten' && !ws.kampf) {
       const c = String(m.code || '').trim(), host = raeume.get(c);
       if (!host || host === ws || host.readyState !== 1) return sende(ws, { t: 'fehler', text: 'Diesen Raum gibt es nicht (mehr).' });
-      kampfStarten(host, ws);
+      kampfStarten(host, ws, host.modus);
     } else if (m.t === 'abbrechen') {
       austragen(ws);
     } else if (m.t === 'spiel' && ws.kampf) {

@@ -1,19 +1,30 @@
 /* Clash of Taddel – Oberfläche, Steuerung, Computer-Kampf und Online-Duell. Die 3D-Grafik steckt in grafik.js. */
 import * as G from './grafik.js';
 
-const { W, H, KARTEN, ARENEN, STARTDECK, SPIELBAR, Sim, KI, arenaVon, deckPruefen, SPIELZEIT, VERLAENGERUNG } = window.COT;
+const { W, H, KARTEN, ARENEN, STARTDECK, SPIELBAR, Sim, KI, arenaVon, deckPruefen, SPIELZEIT, VERLAENGERUNG, MODI, MAX_KOENIG } = window.COT;
 const EMOTES = ['👍', '😂', '😡', '😭', '🤯', '👑'];
 const RARITAET = ['Gewöhnlich', 'Selten', 'Episch', 'Legendär'];
 const $ = id => document.getElementById(id);
 
 /* ---------- Spielstand ---------- */
 const SPEICHER = 'cot_spielstand';
-const stand = { troph: 0, best: 0, siege: 0, nieder: 0, deck: STARTDECK.slice(), name: '', gold: 150, karten: {}, truhen: [{ art: 'gold', start: 1, dauer: 0 }, null, null, null], zyklus: 0 };
+const stand = { troph: 0, best: 0, siege: 0, nieder: 0, deck: STARTDECK.slice(), name: '', gold: 150, karten: {}, truhen: [{ art: 'gold', start: 1, dauer: 0 }, null, null, null], zyklus: 0,
+  gems: 100, xp: 0, koenig: 1, decks: null, deckNr: 0, gratis: { n: 1, ab: Date.now() }, kronenTag: { datum: '', n: 0, geholt: false },
+  aufgaben: { datum: '', liste: [] }, pfad: [], protokoll: [], stats: { dreiKronen: 0, gespielt: {}, karten: 0, online: 0 }, shop: { datum: '', gekauft: [] }, ton: true };
 try { Object.assign(stand, JSON.parse(localStorage.getItem(SPEICHER) || '{}')); } catch (e) {}
 try { if (!stand.name) stand.name = localStorage.getItem('sl_name') || ''; } catch (e) {}
 const freigeschaltet = k => KARTEN[k].a <= arenaVon(stand.best);
-stand.deck = deckPruefen(stand.deck).filter(freigeschaltet);
-for (const k of STARTDECK) if (stand.deck.length < 8 && !stand.deck.includes(k)) stand.deck.push(k);
+function deckSaeubern(d) {
+  d = deckPruefen(d).filter(freigeschaltet);
+  for (const k of STARTDECK) if (d.length < 8 && !d.includes(k)) d.push(k);
+  return d;
+}
+// Drei Deck-Plätze; stand.deck zeigt immer auf das aktive Deck
+if (!Array.isArray(stand.decks) || stand.decks.length !== 3) stand.decks = [stand.deck, STARTDECK.slice(), STARTDECK.slice()];
+stand.decks = stand.decks.map(deckSaeubern);
+stand.deckNr = Math.max(0, Math.min(2, stand.deckNr | 0));
+stand.deck = stand.decks[stand.deckNr];
+const heute = () => new Date().toDateString();
 // Karten-Level: Kopien und Gold zum Verbessern
 const { MAX_STUFE } = window.COT;
 const KOPIEN = [2, 4, 10, 20, 50, 100, 200, 400], GOLD = [5, 20, 50, 150, 400, 1000, 2000, 4000];
@@ -25,13 +36,64 @@ const brauchtGold = k => Math.round(GOLD[stufe(k) - 1] * RAR_GOLD[KARTEN[k].rar 
 const verbesserbar = k => stand.karten[k] && stand.karten[k].n >= brauchtKopien(k) && stand.gold >= brauchtGold(k);
 const meineStufen = () => Object.fromEntries(stand.deck.map(k => [k, stufe(k)]));
 
+// Königslevel: Erfahrung aus Verbesserungen und Aufgaben, stärkt die eigenen Türme um 7 % pro Level
+const XP_BIS = [20, 50, 100, 200, 400, 800, 1500, 2500, 4000, 6000, 9000, 13000];
+const XP_UPGRADE = [4, 5, 6, 10, 25, 50, 100, 200];
+function xpDazu(n) {
+  stand.xp += n;
+  while (stand.koenig < MAX_KOENIG && stand.xp >= XP_BIS[stand.koenig - 1]) {
+    stand.xp -= XP_BIS[stand.koenig - 1]; stand.koenig++; stand.gems += 10;
+    setTimeout(() => banner2(`👑 Königslevel ${stand.koenig}! Türme stärker · +10 💎`), 600);
+  }
+}
+
+// Gratis-Truhe alle 4 Stunden (höchstens 2 auf Vorrat) und Kronentruhe (10 Kronen pro Tag)
+const GRATIS_MS = 4 * 3600e3;
+function gratisStand() {
+  const g = stand.gratis;
+  while (g.n < 2 && Date.now() >= g.ab + GRATIS_MS) { g.n++; g.ab += GRATIS_MS; }
+  if (g.n >= 2) g.ab = Date.now();
+  return g;
+}
+function kronenTag() { if (stand.kronenTag.datum !== heute()) stand.kronenTag = { datum: heute(), n: 0, geholt: false }; return stand.kronenTag; }
+
+// Tägliche Aufgaben
+const AUFGABEN = {
+  siege: { n: 'Gewinne 3 Kämpfe', ziel: 3, gold: 150, gems: 5 },
+  kronen: { n: 'Hole 8 Kronen', ziel: 8, gold: 120, xp: 10 },
+  karten: { n: 'Spiele 40 Karten aus', ziel: 40, gold: 100, xp: 5 },
+  kaempfe: { n: 'Bestreite 4 Kämpfe', ziel: 4, gold: 80, gems: 3 },
+  truhen: { n: 'Öffne 2 Truhen', ziel: 2, gold: 100, xp: 10 },
+  verbessern: { n: 'Verbessere eine Karte', ziel: 1, gold: 150, gems: 5 },
+  online: { n: 'Spiele ein Online-Duell', ziel: 1, gems: 10 },
+  dreikronen: { n: 'Gewinne mit 3 Kronen', ziel: 1, gold: 200, gems: 5 },
+  ereignis: { n: 'Spiele 2 Ereignis-Kämpfe', ziel: 2, gold: 120, xp: 5 }
+};
+function zufallTag(salz) { let h = 2166136261; for (const ch of heute() + salz) h = Math.imul(h ^ ch.charCodeAt(0), 16777619); return () => { h = Math.imul(h ^ (h >>> 15), 2246822507); h = Math.imul(h ^ (h >>> 13), 3266489909); return ((h ^= h >>> 16) >>> 0) / 4294967296; }; }
+function aufgabenHeute() {
+  if (stand.aufgaben.datum !== heute()) {
+    const r = zufallTag('aufgaben'), ids = Object.keys(AUFGABEN).sort(() => r() - 0.5).slice(0, 3);
+    stand.aufgaben = { datum: heute(), liste: ids.map(id => ({ id, f: 0, geholt: false })) };
+  }
+  return stand.aufgaben.liste;
+}
+function aufgabe(id, n) { for (const a of aufgabenHeute()) if (a.id === id && !a.geholt) a.f = Math.min(AUFGABEN[id].ziel, a.f + (n || 1)); }
+
+// Trophäenpfad
+const PFAD = [[50, { gold: 100 }], [100, { truhe: 'silber' }], [150, { gems: 20 }], [200, { gold: 200 }], [250, { truhe: 'gold' }], [300, { gems: 30 }],
+  [400, { gold: 300 }], [500, { truhe: 'magisch' }], [600, { gems: 40 }], [700, { gold: 500 }], [800, { truhe: 'gold' }], [900, { gems: 50 }],
+  [1000, { truhe: 'legendaer' }], [1200, { gold: 800 }], [1400, { truhe: 'magisch' }], [1600, { gems: 80 }], [1800, { gold: 1200 }],
+  [2000, { truhe: 'legendaer' }], [2300, { gems: 100 }], [2600, { truhe: 'magisch' }], [3000, { gold: 2500 }], [3500, { truhe: 'legendaer' }]];
+
 // Truhen
 const TRUHEN = {
   holz: { n: 'Holztruhe', zeit: 5, karten: 4, gold: [10, 25], farbe: '#a1887f' },
   silber: { n: 'Silbertruhe', zeit: 30, karten: 8, gold: [25, 50], farbe: '#cfd8dc' },
   gold: { n: 'Goldtruhe', zeit: 120, karten: 22, gold: [90, 160], farbe: '#ffca28' },
   magisch: { n: 'Magische Truhe', zeit: 300, karten: 45, gold: [250, 400], farbe: '#e040fb', episch: 1 },
-  legendaer: { n: 'Legendäre Truhe', zeit: 480, karten: 1, gold: [100, 200], farbe: '#5ff0ff', legendaer: 1 }
+  legendaer: { n: 'Legendäre Truhe', zeit: 480, karten: 1, gold: [100, 200], farbe: '#5ff0ff', legendaer: 1 },
+  gratis: { n: 'Gratis-Truhe', zeit: 0, karten: 6, gold: [20, 45], gems: [0, 4], farbe: '#8bc34a' },
+  kronen: { n: 'Kronentruhe', zeit: 0, karten: 28, gold: [120, 220], gems: [3, 10], farbe: '#ffca28' }
 };
 const ZYKLUS = ['silber', 'silber', 'gold', 'silber', 'holz', 'silber', 'gold', 'magisch', 'silber', 'silber', 'gold', 'silber', 'silber', 'gold', 'legendaer', 'silber', 'magisch', 'gold'];
 function speichern() { try { localStorage.setItem(SPEICHER, JSON.stringify(stand)); } catch (e) {} }
@@ -52,14 +114,34 @@ addEventListener('resize', bereichMessen);
 if (window.ResizeObserver) new ResizeObserver(bereichMessen).observe($('handBereich'));
 
 /* ---------- Bildschirme ---------- */
+const TABS = ['shop', 'deck', 'menu', 'events', 'profil'];
 function zeige(id) {
   document.querySelectorAll('.bildschirm').forEach(b => b.classList.toggle('an', b.id === id));
+  $('tabs').hidden = !TABS.includes(id);
+  document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('an', b.dataset.tab === id));
   if (id === 'menu') menuAktualisieren();
   if (id === 'deck') deckZeichnen();
+  if (id === 'shop') shopZeichnen();
+  if (id === 'events') eventsZeichnen();
+  if (id === 'profil') profilZeichnen();
   if (id !== 'kampf') { G.modus('menu', 0, arenaVon(stand.troph)); }
   bereichMessen();
 }
 document.querySelectorAll('[data-zu]').forEach(b => b.addEventListener('click', () => zeige(b.dataset.zu)));
+document.querySelectorAll('#tabs button').forEach(b => b.addEventListener('click', () => { ton(500, .04, 'triangle', .03); if (b.dataset.tab === 'deck') { infoKarte = null; tauschModus = false; } zeige(b.dataset.tab); }));
+function kopfleiste() {
+  const aufgabeBereit = aufgabenHeute().some(a => !a.geholt && a.f >= AUFGABEN[a.id].ziel);
+  const pfadBereit = PFAD.some(([t], i) => stand.best >= t && !stand.pfad.includes(i));
+  $('tabs').querySelector('[data-tab="events"]').classList.toggle('punkt', aufgabeBereit);
+  $('tabs').querySelector('[data-tab="menu"]').classList.toggle('punkt', pfadBereit);
+  $('pfadPunkt').hidden = !pfadBereit;
+  const xp = stand.koenig >= MAX_KOENIG ? '100%' : Math.min(100, stand.xp / XP_BIS[stand.koenig - 1] * 100) + '%';
+  document.querySelectorAll('.koenigwert').forEach(e => (e.textContent = stand.koenig));
+  document.querySelectorAll('.xpwert').forEach(e => (e.style.width = xp));
+  document.querySelectorAll('.namewert').forEach(e => (e.textContent = stand.name || 'Spieler'));
+  document.querySelectorAll('.goldwert').forEach(e => (e.textContent = stand.gold));
+  document.querySelectorAll('.gemwert').forEach(e => (e.textContent = stand.gems));
+}
 
 function menuAktualisieren() {
   const a = arenaVon(stand.troph), ar = ARENEN[a], nx = ARENEN[a + 1];
@@ -69,7 +151,6 @@ function menuAktualisieren() {
   const neu = nx ? SPIELBAR.filter(k => KARTEN[k].a === a + 1).map(k => KARTEN[k].n).join(', ') : '';
   $('arenaNaechste').textContent = nx ? `Nächste Arena ab ${nx.ab} 🏆: ${nx.n} – mit ${neu}` : 'Höchste Arena erreicht!';
   truhenZeichnen();
-  $('statSiege').textContent = stand.siege + ' Siege'; $('statNieder').textContent = stand.nieder + ' Niederlagen'; $('statBest').textContent = 'Rekord ' + stand.best + ' 🏆';
   G.modus('menu', 0, a);
 }
 
@@ -87,6 +168,8 @@ function karteEl(k, extra) {
 /* ---------- Deck-Bau ---------- */
 let infoKarte = null, tauschModus = false;
 function deckZeichnen() {
+  kopfleiste();
+  document.querySelectorAll('#deckPlaetze button').forEach((b, i) => { b.classList.toggle('an', i === stand.deckNr); b.onclick = () => { stand.deckNr = i; stand.deck = stand.decks[i]; speichern(); tauschModus = false; deckZeichnen(); }; });
   const dg = $('deckGitter'); dg.innerHTML = '';
   stand.deck.forEach((k, i) => dg.appendChild(karteEl(k, b => { fortschrittAnhaengen(b, k); b.addEventListener('click', () => {
     if (tauschModus && infoKarte) {
@@ -95,7 +178,6 @@ function deckZeichnen() {
       tauschModus = false; speichern(); deckZeichnen(); ton(660, .08);
     } else { infoKarte = k; deckZeichnen(); }
   }); })));
-  $('goldDeck').textContent = stand.gold;
   $('deckBox').classList.toggle('tausch', tauschModus);
   const schnitt = stand.deck.reduce((s, k) => s + KARTEN[k].c, 0) / 8;
   $('deckSchnitt').textContent = 'Ø ' + schnitt.toFixed(1) + ' Elixier';
@@ -143,16 +225,17 @@ function infoZeichnen() {
   const b = $('einsetzen'); if (b) b.addEventListener('click', () => { tauschModus = true; deckZeichnen(); });
   const v = $('verbessern'); if (v) v.addEventListener('click', () => {
     if (!verbesserbar(k)) return;
-    stand.gold -= brauchtGold(k); stand.karten[k].n -= brauchtKopien(k); stand.karten[k].lvl++;
+    stand.gold -= brauchtGold(k); stand.karten[k].n -= brauchtKopien(k); xpDazu(XP_UPGRADE[stufe(k) - 1]); stand.karten[k].lvl++; aufgabe('verbessern');
     speichern(); ton(523, .1, 'triangle', .06); setTimeout(() => ton(784, .2, 'triangle', .06), 100);
     deckZeichnen(); banner2(`${c.n} ist jetzt Level ${stufe(k)}!`);
   });
 }
-$('deckKnopf').addEventListener('click', () => { infoKarte = null; tauschModus = false; zeige('deck'); });
+$('eventsKnopf').addEventListener('click', () => zeige('events'));
 
 /* ---------- Ton ---------- */
 let audio = null;
 function ton(f, dauer, typ, laut) {
+  if (!stand.ton) return;
   try {
     audio = audio || new (window.AudioContext || window.webkitAudioContext)();
     const o = audio.createOscillator(), g = audio.createGain(), t = audio.currentTime;
@@ -168,9 +251,10 @@ function kampfAnlegen(modus, opts) {
   K = Object.assign({
     modus, team: 0, ansicht: { ents: [], geschosse: [], zonen: [] }, elixier: 5, hand: [], naechste: null,
     zeit: 0, verl: false, kronen: [0, 0], gewaehlt: null, ziehen: false, zeiger: null, vorbei: false, laeuft: true,
-    gegnerName: 'Computer', doppeltGemeldet: false
+    gegnerName: 'Computer', doppeltGemeldet: false, ereignis: 'normal'
   }, opts || {});
-  $('nameGegner').textContent = K.gegnerName; $('nameIch').textContent = stand.name || 'Du';
+  const lv = t => t.replace(/^Lv\.(\d+) /, '<small class="lv">$1</small>');
+  $('nameGegner').innerHTML = lv(K.gegnerName.replace(/[<>&]/g, '')); $('nameIch').innerHTML = lv(`Lv.${stand.koenig} ${(stand.name || 'Du').replace(/[<>&]/g, '')}`);
   emoteLeiste();
   zeige('kampf');
   G.modus('kampf', K.team, arenaVon(stand.troph));
@@ -178,17 +262,27 @@ function kampfAnlegen(modus, opts) {
   bereichMessen(); requestAnimationFrame(bereichMessen);
 }
 
-function kampfGegenKI() {
-  const arena = arenaVon(stand.troph);
+function kampfGegenKI(modus) {
+  modus = modus || 'normal';
+  const arena = arenaVon(stand.troph), training = modus === 'training';
   const pool = SPIELBAR.filter(k => KARTEN[k].a <= arena);
-  const kiDeck = pool.slice().sort(() => Math.random() - .5).slice(0, 8);
-  const schnitt = Math.max(1, Math.round(stand.deck.reduce((a, k) => a + stufe(k), 0) / 8 - (arena === 0 ? 1 : 0)));
-  const sim = new Sim([stand.deck, kiDeck], [meineStufen(), Object.fromEntries(kiDeck.map(k => [k, schnitt]))]);
+  const schnitt = Math.max(1, Math.round(stand.deck.reduce((a, k) => a + stufe(k), 0) / 8 - (arena === 0 ? 1 : 0) - (training ? 2 : 0)));
+  let meinDeck = stand.deck, meineSt = meineStufen();
+  let kiDeck = pool.slice().sort(() => Math.random() - .5).slice(0, 8), kiSt = Object.fromEntries(kiDeck.map(k => [k, schnitt]));
+  if (modus === 'spiegel') { kiDeck = stand.deck.slice(); kiSt = meineSt; }
+  if (modus === 'zufall') {
+    const alle = SPIELBAR.slice();
+    meinDeck = alle.sort(() => Math.random() - .5).slice(0, 8); kiDeck = alle.slice().sort(() => Math.random() - .5).slice(0, 8);
+    meineSt = Object.fromEntries(meinDeck.map(k => [k, schnitt])); kiSt = Object.fromEntries(kiDeck.map(k => [k, schnitt]));
+  }
+  const kiKoenig = Math.max(1, stand.koenig - (training ? 2 : 0));
+  const sim = new Sim([meinDeck, kiDeck], [meineSt, kiSt], { modus: training ? 'normal' : modus, koenig: [stand.koenig, kiKoenig] });
   const namen = ['Bowser', 'Dr. Doofenschmirtz', 'Plankton', 'Team Rocket', 'Dr. Eggman', 'Ganondorf', 'Lord Voldemort', 'Der Imperator', 'Loki', 'Skeletor'];
-  kampfAnlegen('ki', { sim, ki: new KI(sim, 1, arena), gegnerName: namen[Math.floor(Math.random() * namen.length)] });
-  banner('⚔️ Kampf!');
+  kampfAnlegen('ki', { sim, ki: new KI(sim, 1, training ? 0 : arena), ereignis: modus, gegnerName: `Lv.${kiKoenig} ` + (training ? 'Trainer' : namen[Math.floor(Math.random() * namen.length)]) });
+  if (training) sim.elixier[1] = 2;
+  banner(MODI[modus].e + ' ' + (modus === 'normal' ? 'Kampf!' : MODI[modus].n));
 }
-$('kiKnopf').addEventListener('click', () => { ton(520, .1); kampfGegenKI(); });
+$('kiKnopf').addEventListener('click', () => { ton(520, .1); kampfGegenKI('normal'); });
 
 function ansichtAusSim(sim) {
   return {
@@ -265,12 +359,12 @@ function handZeichnen(erzwingen) {
 }
 function hudZeichnen() {
   const rest = Math.max(0, Math.ceil((K.verl ? SPIELZEIT + VERLAENGERUNG : SPIELZEIT) - K.zeit));
-  const doppelt = K.zeit >= SPIELZEIT - 60;
+  const doppelt = K.zeit >= SPIELZEIT - 60 || K.ereignis === 'dreifach';
   $('uhrZeit').textContent = `${Math.floor(rest / 60)}:${String(rest % 60).padStart(2, '0')}`;
-  $('uhrText').textContent = K.verl ? 'Verlängerung' : doppelt ? '2× Elixier' : 'Restzeit';
+  $('uhrText').textContent = K.ereignis === 'tod' ? 'Plötzl. Tod' : K.verl ? 'Verlängerung' : K.ereignis === 'dreifach' ? '3× Elixier' : doppelt ? '2× Elixier' : 'Restzeit';
   $('uhr').classList.toggle('knapp', rest <= 10);
   $('uhr').classList.toggle('doppelt', doppelt);
-  if (doppelt && !K.doppeltGemeldet) { K.doppeltGemeldet = true; banner('💧 2× Elixier!'); }
+  if (doppelt && !K.doppeltGemeldet && K.ereignis !== 'dreifach') { K.doppeltGemeldet = true; banner('💧 2× Elixier!'); }
   const kr = n => [0, 1, 2].map(i => `<i class="${i < n ? 'an' : ''}"></i>`).join('');
   $('kronenIch').innerHTML = kr(K.kronen[K.team]); $('kronenGegner').innerHTML = kr(K.kronen[1 - K.team]);
 }
@@ -285,6 +379,7 @@ function legen(p) {
   if (K.modus === 'ki') { if (!K.sim.spielen(K.team, key, p.x, p.y)) return false; }
   else { netz.senden({ t: 'spiel', key, x: Math.round(p.x * 100) / 100, y: Math.round(p.y * 100) / 100 }); K.elixier -= c.c; K.hand = K.hand.filter(k => k !== key); }
   ton(620, .09, 'triangle', .05);
+  stand.stats.karten++; stand.stats.gespielt[key] = (stand.stats.gespielt[key] || 0) + 1; aufgabe('karten');
   K.gewaehlt = null; K.zeiger = null;
   handZeichnen();
   return true;
@@ -333,7 +428,7 @@ function schleife(jetzt) {
       K.zeit = s.zeit; K.verl = s.verl; K.kronen = s.kronen;
       if (s.vorbei && !K.vorbei) kampfVorbei(s.sieger, s.kronen);
     } else {
-      K.elixier = Math.min(10, K.elixier + dt / 2.8 * (K.zeit >= SPIELZEIT - 60 ? 2 : 1));
+      K.elixier = Math.min(10, K.elixier + dt / 2.8 * (K.ereignis === 'dreifach' ? 3 : K.zeit >= SPIELZEIT - 60 ? 2 : 1));
       if (!K.vorbei) K.zeit += dt;
       if (K.ziel && K.vorher) {
         K.mix = Math.min(1, K.mix + dt / .066);
@@ -354,15 +449,30 @@ function kampfVorbei(sieger, kronen) {
   if (!K || K.vorbei) return;
   K.vorbei = true; K.gewaehlt = null;
   const gewonnen = sieger === K.team, unentschieden = sieger === 2;
-  const vorherArena = arenaVon(stand.best);
+  const vorherArena = arenaVon(stand.best), ladder = K.ereignis === 'normal', training = K.ereignis === 'training';
+  const meine = kronen[K.team];
   let delta = 0;
   let neueTruhe = null, goldPlus = 0;
+  if (!training) {
+    aufgabe('kaempfe'); aufgabe('kronen', meine);
+    if (!ladder) aufgabe('ereignis');
+    if (K.modus === 'online') { aufgabe('online'); stand.stats.online++; }
+    const kt = kronenTag(); if (!kt.geholt) kt.n = Math.min(10, kt.n + meine);
+  }
   if (gewonnen) {
-    delta = 30; stand.siege++; goldPlus = 10 + kronen[K.team] * 5; stand.gold += goldPlus;
-    const frei = stand.truhen.findIndex(t => !t);
-    if (frei >= 0) { neueTruhe = ZYKLUS[stand.zyklus++ % ZYKLUS.length]; stand.truhen[frei] = { art: neueTruhe, start: 0, dauer: TRUHEN[neueTruhe].zeit }; }
-  } else if (!unentschieden) { delta = -Math.min(20, stand.troph); stand.nieder++; }
-  stand.troph += delta; stand.best = Math.max(stand.best, stand.troph); speichern();
+    stand.siege++; aufgabe('siege');
+    if (meine === 3) { stand.stats.dreiKronen++; aufgabe('dreikronen'); }
+    if (ladder) {
+      delta = 30; goldPlus = 10 + meine * 5;
+      const frei = stand.truhen.findIndex(t => !t);
+      if (frei >= 0) { neueTruhe = ZYKLUS[stand.zyklus++ % ZYKLUS.length]; stand.truhen[frei] = { art: neueTruhe, start: 0, dauer: TRUHEN[neueTruhe].zeit }; }
+    } else if (!training) goldPlus = 25;
+    stand.gold += goldPlus;
+  } else if (!unentschieden) { stand.nieder++; if (ladder) delta = -Math.min(20, stand.troph); }
+  stand.troph += delta; stand.best = Math.max(stand.best, stand.troph);
+  stand.protokoll.unshift({ zeit: Date.now(), erg: gewonnen ? 1 : unentschieden ? 0 : -1, kronen: [meine, kronen[1 - K.team]], gegner: K.gegnerName, modus: K.ereignis, online: K.modus === 'online', delta, deck: stand.deck.slice() });
+  stand.protokoll = stand.protokoll.slice(0, 15);
+  speichern();
   if (window.SLRang) window.SLRang.melde(window.SLRangAdapter());
   const nachherArena = arenaVon(stand.best);
   setTimeout(() => {
@@ -370,7 +480,7 @@ function kampfVorbei(sieger, kronen) {
     $('ergebnisOverlay').dataset.art = unentschieden ? 'remis' : gewonnen ? 'sieg' : 'nieder';
     $('ergKronenIch').innerHTML = [0, 1, 2].map(i => `<i class="${i < kronen[K.team] ? 'an' : ''}"></i>`).join('');
     $('ergKronenGegner').innerHTML = [0, 1, 2].map(i => `<i class="${i < kronen[1 - K.team] ? 'an rot' : ''}"></i>`).join('');
-    $('ergTroph').textContent = (delta >= 0 ? '+' : '') + delta;
+    $('ergTroph').textContent = (delta >= 0 ? '+' : '') + delta; $('ergTroph').hidden = !ladder;
     const neu = $('ergNeu'), teile = [];
     if (nachherArena > vorherArena) {
       for (const k of SPIELBAR) if (KARTEN[k].a <= nachherArena && !stand.karten[k]) stand.karten[k] = { lvl: 1, n: 0 };
@@ -380,6 +490,8 @@ function kampfVorbei(sieger, kronen) {
     if (neueTruhe) teile.push(`<img src="${BILDER['truhe_' + neueTruhe]}" alt="" class="mini-truhe"> ${TRUHEN[neueTruhe].n} erhalten!`);
     else if (gewonnen) teile.push('Alle Truhenplätze sind voll – öffne zuerst eine Truhe.');
     if (goldPlus) teile.push(`+${goldPlus} 🪙 Gold`);
+    if (!ladder) teile.push(`${MODI[K.ereignis].e} ${MODI[K.ereignis].n}${training ? ' – nur Übung' : ' – keine Trophäen'}`);
+    const kt = kronenTag(); if (!training && !kt.geholt) teile.push(`👑 Kronentruhe: ${kt.n}/10`);
     neu.hidden = !teile.length; neu.innerHTML = teile.join('<br>');
     $('ergebnisOverlay').classList.add('an');
     ton(gewonnen ? 880 : 220, .5, 'triangle', .07);
@@ -414,8 +526,9 @@ const netz = {
     else if (m.t === 'fehler') lobbyStatus(m.text);
     else if (m.t === 'start') {
       $('abbrechenKnopf').hidden = true; $('codeAnzeige').hidden = true; lobbyStatus('');
-      kampfAnlegen('online', { team: m.team, gegnerName: m.gegner.name + ' · ' + m.gegner.troph + ' 🏆', ziel: null, vorher: null, mix: 1 });
-      banner('⚔️ Kampf!'); ton(660, .2, 'triangle', .06);
+      const md = MODI[m.modus] ? m.modus : 'normal';
+      kampfAnlegen('online', { team: m.team, ereignis: md, gegnerName: `Lv.${m.gegner.koenig || 1} ${m.gegner.name} · ${m.gegner.troph} 🏆`, ziel: null, vorher: null, mix: 1 });
+      banner(MODI[md].e + ' ' + (md === 'normal' ? 'Kampf!' : MODI[md].n)); ton(660, .2, 'triangle', .06);
     }
     else if (m.t === 's' && K && K.modus === 'online') {
       const a = ansichtAusSchnapp(m.s);
@@ -442,13 +555,19 @@ async function online(aktion) {
   const name = nameHolen(); if (!name) return;
   lobbyStatus('Verbinde', true);
   try { await netz.verbinden(); } catch (e) { lobbyStatus(e.message); return; }
-  netz.senden({ t: 'hallo', name, troph: stand.troph, deck: stand.deck, stufen: meineStufen() });
+  netz.senden({ t: 'hallo', name, troph: stand.troph, deck: stand.deck, stufen: meineStufen(), koenig: stand.koenig });
   netz.senden(aktion);
   $('abbrechenKnopf').hidden = false;
 }
-$('onlineKnopf').addEventListener('click', () => { $('nameFeld').value = stand.name || ''; lobbyStatus(''); $('codeAnzeige').hidden = true; $('abbrechenKnopf').hidden = true; zeige('lobby'); });
-$('sucheKnopf').addEventListener('click', () => { $('codeAnzeige').hidden = true; online({ t: 'suche' }); });
-$('raumKnopf').addEventListener('click', () => online({ t: 'raum' }));
+let lobbyModus = 'normal';
+function lobbyOeffnen(modus) {
+  lobbyModus = modus || 'normal';
+  $('lobbyTitel').textContent = lobbyModus === 'normal' ? 'Online-Duell' : MODI[lobbyModus].e + ' ' + MODI[lobbyModus].n;
+  $('nameFeld').value = stand.name || ''; lobbyStatus(''); $('codeAnzeige').hidden = true; $('abbrechenKnopf').hidden = true; zeige('lobby');
+}
+$('onlineKnopf').addEventListener('click', () => lobbyOeffnen('normal'));
+$('sucheKnopf').addEventListener('click', () => { $('codeAnzeige').hidden = true; online({ t: 'suche', modus: lobbyModus }); });
+$('raumKnopf').addEventListener('click', () => online({ t: 'raum', modus: lobbyModus }));
 $('beitretenKnopf').addEventListener('click', () => {
   const c = $('codeFeld').value.trim();
   if (!/^\d{4}$/.test(c)) { lobbyStatus('Der Code hat 4 Ziffern.'); return; }
@@ -459,7 +578,7 @@ $('abbrechenKnopf').addEventListener('click', lobbyVerlassen);
 $('lobbyZurueck').addEventListener('click', () => { lobbyVerlassen(); zeige('menu'); });
 
 /* ---------- Truhen ---------- */
-const zeitText = ms => { const s = Math.max(0, Math.ceil(ms / 1000)), m = Math.floor(s / 60); return m ? `${m}m ${String(s % 60).padStart(2, '0')}s` : `${s}s`; };
+const zeitText = ms => { const s = Math.max(0, Math.ceil(ms / 1000)), m = Math.floor(s / 60), h = Math.floor(m / 60); return h ? `${h}h ${String(m % 60).padStart(2, '0')}m` : m ? `${m}m ${String(s % 60).padStart(2, '0')}s` : `${s}s`; };
 function truhenZeichnen() {
   const box = $('truhen'); box.innerHTML = '';
   const jetzt = Date.now(), laeuft = stand.truhen.some(t => t && t.start && jetzt < t.start + t.dauer * 1000);
@@ -473,18 +592,39 @@ function truhenZeichnen() {
     b.setAttribute('aria-label', T.n + (fertig ? ', bereit zum Öffnen' : ''));
     b.addEventListener('click', () => {
       if (fertig) truheOeffnen(i);
-      else if (offen) banner2('Wird gerade freigeschaltet …');
-      else if (laeuft) banner2('Es wird schon eine andere Truhe freigeschaltet.');
+      else if (offen || laeuft) {
+        const kosten = Math.max(1, Math.ceil((offen ? ende - jetzt : t.dauer * 1000) / 30000));
+        if (stand.gems < kosten) { banner2(`Zu wenig Edelsteine (${kosten} 💎 nötig)`); return; }
+        if (!confirm(`${T.n} jetzt für ${kosten} 💎 öffnen?`)) return;
+        stand.gems -= kosten; truheOeffnen(i);
+      }
       else { t.start = Date.now(); speichern(); truhenZeichnen(); ton(660, .1, 'triangle', .05); }
     });
     box.appendChild(b);
   });
-  $('goldAnzeige').textContent = stand.gold;
+  // Gratis- und Kronentruhe
+  const g = gratisStand(), kt = kronenTag();
+  $('gratisKnopf').innerHTML = `<img src="${BILDER.truhe_gratis}" alt=""><span><b>Gratis-Truhe</b><small>${g.n ? g.n + '× bereit!' : 'in ' + zeitText(g.ab + GRATIS_MS - Date.now())}</small></span>`;
+  $('gratisKnopf').classList.toggle('bereit', g.n > 0);
+  $('kronenKnopf').innerHTML = `<img src="${BILDER.truhe_kronen}" alt=""><span><b>Kronentruhe</b><small>${kt.geholt ? 'Morgen wieder' : kt.n >= 10 ? 'Bereit!' : kt.n + '/10 👑'}</small></span><i style="width:${kt.n * 10}%"></i>`;
+  $('kronenKnopf').classList.toggle('bereit', kt.n >= 10 && !kt.geholt);
+  kopfleiste();
 }
+$('gratisKnopf').addEventListener('click', () => {
+  const g = gratisStand(); if (!g.n) { banner2('Die nächste Gratis-Truhe kommt bald.'); return; }
+  if (g.n >= 2) g.ab = Date.now();
+  g.n--; truheZeigen('gratis');
+});
+$('kronenKnopf').addEventListener('click', () => {
+  const kt = kronenTag(); if (kt.geholt) { banner2('Morgen gibt es eine neue Kronentruhe.'); return; }
+  if (kt.n < 10) { banner2(`Hole noch ${10 - kt.n} Kronen in Kämpfen.`); return; }
+  kt.geholt = true; truheZeigen('kronen');
+});
 setInterval(() => { if ($('menu').classList.contains('an')) truhenZeichnen(); }, 1000);
 
 function belohnung(art) {
   const T = TRUHEN[art], arena = arenaVon(stand.best), mult = 1 + arena * 0.25;
+  const gems = T.gems ? Math.round(T.gems[0] + Math.random() * (T.gems[1] - T.gems[0])) : 0;
   const pool = SPIELBAR.filter(freigeschaltet), gew = [1, 0.45, 0.14, 0.035];
   const ziehen = filt => {
     const p = pool.filter(filt || (() => true)); if (!p.length) return null;
@@ -503,20 +643,24 @@ function belohnung(art) {
     }
     if (T.episch) { const k = ziehen(k => KARTEN[k].rar === 2); if (k) z[k] = (z[k] || 0) + Math.max(1, Math.round(n / 20)); }
   }
-  return { gold, karten: Object.entries(z).sort((a, b) => (KARTEN[a[0]].rar || 0) - (KARTEN[b[0]].rar || 0)) };
+  return { gold, gems, karten: Object.entries(z).sort((a, b) => (KARTEN[a[0]].rar || 0) - (KARTEN[b[0]].rar || 0)) };
 }
 
 function truheOeffnen(i) {
   const t = stand.truhen[i]; if (!t) return;
-  const T = TRUHEN[t.art], b = belohnung(t.art);
-  stand.truhen[i] = null; stand.gold += b.gold;
+  stand.truhen[i] = null;
+  truheZeigen(t.art);
+}
+function truheZeigen(art, fertigDanach) {
+  const t = { art }, T = TRUHEN[art], b = belohnung(art);
+  stand.gold += b.gold; stand.gems += b.gems; aufgabe('truhen');
   for (const [k, n] of b.karten) { stand.karten[k] = stand.karten[k] || { lvl: 1, n: 0 }; stand.karten[k].n += n; }
   speichern();
   const o = $('truhenOverlay'), buehne = $('truhenBuehne');
   const schritte = [
     () => { buehne.innerHTML = `<img class="gross-truhe wackeln" src="${BILDER['truhe_' + t.art]}" alt=""><div class="truhen-titel titelschrift">${T.n}</div><div class="tipp">Tippen zum Öffnen</div>`; },
     () => { ton(330, .15, 'square', .06); setTimeout(() => ton(660, .25, 'triangle', .07), 120);
-      buehne.innerHTML = `<img class="gross-truhe auf" src="${BILDER['truhe_' + t.art]}" alt=""><div class="belohnung titelschrift"><span style="font-family:var(--emoji)">🪙</span> +${b.gold}</div><div class="tipp">Gold · ${b.karten.length} Kartensorten warten</div>`; },
+      buehne.innerHTML = `<img class="gross-truhe auf" src="${BILDER['truhe_' + t.art]}" alt=""><div class="belohnung titelschrift"><span style="font-family:var(--emoji)">🪙</span> +${b.gold}${b.gems ? ` <span style="font-family:var(--emoji)">💎</span> +${b.gems}` : ''}</div><div class="tipp">${b.karten.length} Kartensorten warten</div>`; },
     ...b.karten.map(([k, n]) => () => {
       const c = KARTEN[k], br = brauchtKopien(k), hat = stand.karten[k].n;
       ton(440 + (c.rar || 0) * 160, .2, 'triangle', .07);
@@ -526,7 +670,7 @@ function truheOeffnen(i) {
       buehne.querySelector('.karte-gross').appendChild(karteEl(k));
     }),
     () => { buehne.innerHTML = `<div class="truhen-titel titelschrift">Inhalt</div><div class="zusammen">${b.karten.map(([k, n]) => `<div><img src="${BILDER[k]}" alt=""><b>×${n}</b><span>${KARTEN[k].n}</span></div>`).join('')}</div><div class="belohnung klein titelschrift">+${b.gold} 🪙</div><div class="tipp">Tippen zum Schließen</div>`; },
-    () => { o.classList.remove('an'); truhenZeichnen(); return true; }
+    () => { o.classList.remove('an'); if ($('menu').classList.contains('an')) truhenZeichnen(); kopfleiste(); if (fertigDanach) fertigDanach(); return true; }
   ];
   let nr = 0;
   schritte[nr++]();
@@ -536,5 +680,134 @@ function truheOeffnen(i) {
 function banner2(text) {
   const b = document.createElement('div'); b.className = 'toast'; b.textContent = text; document.body.appendChild(b); setTimeout(() => b.remove(), 2200);
 }
+/* ---------- Shop ---------- */
+const PREIS_KOPIE = [10, 60, 400, 4000], ANZAHL_ANGEBOT = [10, 4, 1, 1];
+function tagesAngebote() {
+  if (stand.shop.datum !== heute()) stand.shop = { datum: heute(), gekauft: [] };
+  const r = zufallTag('shop'), pool = SPIELBAR.filter(freigeschaltet).sort(() => r() - 0.5);
+  const gratis = pool.find(k => (KARTEN[k].rar || 0) <= 1) || pool[0];
+  const rest = pool.filter(k => k !== gratis).slice(0, 5);
+  return [gratis, ...rest].map((k, i) => { const rar = KARTEN[k].rar || 0, n = i === 0 ? Math.max(1, Math.round(ANZAHL_ANGEBOT[rar] / 2)) : ANZAHL_ANGEBOT[rar]; return { k, n, preis: i === 0 ? 0 : n * PREIS_KOPIE[rar] }; });
+}
+const SHOP_TRUHEN = [['gold', 80], ['magisch', 220], ['legendaer', 500]];
+const SHOP_GOLD = [[50, 400], [150, 1400], [400, 4000]];
+function shopZeichnen() {
+  kopfleiste();
+  const box = $('shopAngebote'); box.innerHTML = '';
+  tagesAngebote().forEach((a, i) => {
+    const gekauft = stand.shop.gekauft.includes(i);
+    const w = document.createElement('div'); w.className = 'angebot' + (gekauft ? ' weg' : '');
+    w.appendChild(karteEl(a.k)); w.insertAdjacentHTML('beforeend', `<b class="anzahl">×${a.n}</b>`);
+    const b = document.createElement('button'); b.className = 'knopf klein ' + (a.preis ? 'gruen' : '');
+    b.innerHTML = gekauft ? 'Gekauft' : a.preis ? `${a.preis} 🪙` : 'Gratis!'; b.disabled = gekauft;
+    b.addEventListener('click', () => {
+      if (stand.gold < a.preis) { banner2('Zu wenig Gold'); return; }
+      stand.gold -= a.preis; stand.shop.gekauft.push(i);
+      stand.karten[a.k] = stand.karten[a.k] || { lvl: 1, n: 0 }; stand.karten[a.k].n += a.n;
+      speichern(); ton(784, .15, 'triangle', .06); banner2(`+${a.n} ${KARTEN[a.k].n}`); shopZeichnen();
+    });
+    w.appendChild(b); box.appendChild(w);
+  });
+  const nacht = new Date(); nacht.setHours(24, 0, 0, 0);
+  $('shopNeu').textContent = 'Neue Angebote in ' + zeitText(nacht - Date.now());
+  const tb = $('shopTruhen'); tb.innerHTML = '';
+  for (const [art, preis] of SHOP_TRUHEN) {
+    const b = document.createElement('button'); b.className = 'shop-truhe';
+    b.innerHTML = `<img src="${BILDER['truhe_' + art]}" alt=""><span>${TRUHEN[art].n}</span><b>${preis} 💎</b>`;
+    b.addEventListener('click', () => {
+      if (stand.gems < preis) { banner2('Zu wenig Edelsteine – hol sie dir über Aufgaben, Gratis-Truhen und den Trophäenpfad.'); return; }
+      if (!confirm(`${TRUHEN[art].n} für ${preis} 💎 kaufen?`)) return;
+      stand.gems -= preis; speichern(); truheZeigen(art, shopZeichnen);
+    });
+    tb.appendChild(b);
+  }
+  const gb = $('shopGold'); gb.innerHTML = '';
+  for (const [gems, gold] of SHOP_GOLD) {
+    const b = document.createElement('button'); b.className = 'shop-truhe';
+    b.innerHTML = `<span class="gross-em">🪙</span><span>${gold} Gold</span><b>${gems} 💎</b>`;
+    b.addEventListener('click', () => {
+      if (stand.gems < gems) { banner2('Zu wenig Edelsteine'); return; }
+      stand.gems -= gems; stand.gold += gold; speichern(); ton(880, .15, 'triangle', .06); banner2(`+${gold} Gold`); shopZeichnen();
+    });
+    gb.appendChild(b);
+  }
+}
+
+/* ---------- Ereignisse & Aufgaben ---------- */
+function belohnungText(a) { return [a.gold && `${a.gold} 🪙`, a.gems && `${a.gems} 💎`, a.xp && `${a.xp} XP`].filter(Boolean).join(' · '); }
+function eventsZeichnen() {
+  kopfleiste();
+  const al = $('aufgabenListe'); al.innerHTML = '';
+  for (const a of aufgabenHeute()) {
+    const d = AUFGABEN[a.id], fertig = a.f >= d.ziel;
+    const z = document.createElement('div'); z.className = 'aufgabe' + (a.geholt ? ' geholt' : fertig ? ' fertig' : '');
+    z.innerHTML = `<div style="flex:1;min-width:0"><b>${d.n}</b><div class="kopien"><i style="width:${a.f / d.ziel * 100}%"></i><b>${a.f}/${d.ziel}</b></div><small>${belohnungText(d)}</small></div>`;
+    const b = document.createElement('button'); b.className = 'knopf klein ' + (fertig && !a.geholt ? 'gruen' : 'grau'); b.style.width = 'auto';
+    b.textContent = a.geholt ? '✓' : fertig ? 'Abholen' : '…'; b.disabled = !fertig || a.geholt;
+    b.addEventListener('click', () => {
+      a.geholt = true; stand.gold += d.gold || 0; stand.gems += d.gems || 0; if (d.xp) xpDazu(d.xp);
+      speichern(); ton(880, .2, 'triangle', .07); banner2('Belohnung: ' + belohnungText(d)); eventsZeichnen();
+    });
+    z.appendChild(b); al.appendChild(z);
+  }
+  const ml = $('modusListe'); ml.innerHTML = '';
+  for (const [id, m] of Object.entries(MODI)) {
+    if (id === 'normal') continue;
+    const z = document.createElement('div'); z.className = 'modus';
+    z.innerHTML = `<div class="modus-em">${m.e}</div><div style="flex:1;min-width:0"><b class="titelschrift">${m.n}</b><p>${m.d}</p><div class="reihe"></div></div>`;
+    const r = z.querySelector('.reihe');
+    const k1 = document.createElement('button'); k1.className = 'knopf klein'; k1.textContent = '🤖 Computer'; k1.addEventListener('click', () => kampfGegenKI(id)); r.appendChild(k1);
+    if (id !== 'training') { const k2 = document.createElement('button'); k2.className = 'knopf klein blau'; k2.textContent = '🌐 Online'; k2.addEventListener('click', () => lobbyOeffnen(id)); r.appendChild(k2); }
+    ml.appendChild(z);
+  }
+}
+
+/* ---------- Profil ---------- */
+function profilZeichnen() {
+  kopfleiste();
+  $('profilName').value = stand.name || '';
+  const lieb = Object.entries(stand.stats.gespielt).sort((a, b) => b[1] - a[1])[0];
+  const quote = stand.siege + stand.nieder ? Math.round(stand.siege / (stand.siege + stand.nieder) * 100) : 0;
+  const werte = [['🏆', 'Trophäen', stand.troph], ['⭐', 'Rekord', stand.best], ['👑', 'Königslevel', stand.koenig], ['✅', 'Siege', stand.siege], ['❌', 'Niederlagen', stand.nieder],
+    ['📈', 'Siegquote', quote + ' %'], ['👑👑👑', '3-Kronen-Siege', stand.stats.dreiKronen], ['🃏', 'Karten gespielt', stand.stats.karten], ['🌐', 'Online-Kämpfe', stand.stats.online],
+    ['📚', 'Karten gefunden', Object.keys(stand.karten).length + '/' + SPIELBAR.length]];
+  $('profilWerte').innerHTML = werte.map(([e, n, w]) => `<div><span class="em">${e}</span><b>${w}</b><small>${n}</small></div>`).join('')
+    + (lieb ? `<div class="lieb"><img src="${BILDER[lieb[0]]}" alt=""><b>${KARTEN[lieb[0]].n}</b><small>Lieblingskarte · ${lieb[1]}×</small></div>` : '');
+  $('protokoll').innerHTML = stand.protokoll.length ? stand.protokoll.map(p => `<div class="eintrag e${p.erg}">
+      <div class="kopf"><b>${p.erg > 0 ? 'Sieg' : p.erg < 0 ? 'Niederlage' : 'Unentschieden'}</b><span>${p.kronen[0]} : ${p.kronen[1]}</span><span>${MODI[p.modus] ? MODI[p.modus].e : ''} ${p.online ? '🌐' : '🤖'}</span>${p.modus === 'normal' ? `<span>${p.delta >= 0 ? '+' : ''}${p.delta} 🏆</span>` : ''}</div>
+      <div class="gegen">gegen ${p.gegner} · ${new Date(p.zeit).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</div>
+      <div class="mini-deck">${p.deck.map(k => BILDER[k] ? `<img src="${BILDER[k]}" alt="${KARTEN[k].n}">` : '').join('')}</div></div>`).join('') : '<p class="klein-hinweis">Noch keine Kämpfe.</p>';
+  $('tonKnopf').textContent = stand.ton ? '🔊 Ton an' : '🔇 Ton aus';
+}
+$('profilName').addEventListener('change', () => { const n = $('profilName').value.trim().slice(0, 16); if (n.length >= 2) { stand.name = n; speichern(); kopfleiste(); banner2('Name gespeichert'); } });
+$('tonKnopf').addEventListener('click', () => { stand.ton = !stand.ton; speichern(); profilZeichnen(); });
+
+/* ---------- Trophäenpfad ---------- */
+function pfadZeigen() {
+  const o = $('pfadOverlay'), l = $('pfadListe'); l.innerHTML = '';
+  const punkte = [...PFAD.map(([t, b], i) => ({ t, b, i })), ...ARENEN.map((a, i) => ({ t: a.ab, arena: i }))].sort((a, b) => b.t - a.t || (a.arena != null ? -1 : 1));
+  for (const p of punkte) {
+    const z = document.createElement('div');
+    if (p.arena != null) { z.className = 'pfad-arena' + (stand.best >= p.t ? ' erreicht' : ''); z.innerHTML = `<span class="em">${ARENEN[p.arena].e}</span><b class="titelschrift">Arena ${p.arena + 1}: ${ARENEN[p.arena].n}</b><span>${p.t} 🏆</span>`; l.appendChild(z); continue; }
+    const geholt = stand.pfad.includes(p.i), erreicht = stand.best >= p.t;
+    z.className = 'pfad-stufe' + (geholt ? ' geholt' : erreicht ? ' bereit' : '');
+    const b = p.b, bild = b.truhe ? `<img src="${BILDER['truhe_' + b.truhe]}" alt="">` : `<span class="em">${b.gold ? '🪙' : '💎'}</span>`;
+    z.innerHTML = `<span class="pfad-t">${p.t} 🏆</span>${bild}<span style="flex:1">${b.truhe ? TRUHEN[b.truhe].n : b.gold ? b.gold + ' Gold' : b.gems + ' Edelsteine'}</span>`;
+    const k = document.createElement('button'); k.className = 'knopf klein ' + (erreicht && !geholt ? 'gruen' : 'grau'); k.style.width = 'auto';
+    k.textContent = geholt ? '✓' : erreicht ? 'Holen' : '🔒'; k.disabled = geholt || !erreicht;
+    k.addEventListener('click', () => {
+      stand.pfad.push(p.i);
+      if (b.truhe) { speichern(); o.classList.remove('an'); truheZeigen(b.truhe, () => { menuAktualisieren(); }); return; }
+      stand.gold += b.gold || 0; stand.gems += b.gems || 0; speichern(); ton(880, .2, 'triangle', .07); banner2('+' + (b.gold ? b.gold + ' Gold' : b.gems + ' 💎')); pfadZeigen(); menuAktualisieren();
+    });
+    z.appendChild(k); l.appendChild(z);
+  }
+  o.classList.add('an');
+  const ziel = l.querySelector('.bereit') || [...l.querySelectorAll('.pfad-stufe:not(.geholt)')].pop();
+  if (ziel) ziel.scrollIntoView({ block: 'center' });
+}
+$('arenaSchild').addEventListener('click', pfadZeigen);
+$('pfadZu').addEventListener('click', () => $('pfadOverlay').classList.remove('an'));
+
 zeige('menu');
 $('lade').remove();

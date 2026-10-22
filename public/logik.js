@@ -3,7 +3,7 @@
 (function (root) {
   'use strict';
   const W = 18, H = 32, FLUSS_O = 15, FLUSS_U = 17, BRUECKEN = [3.5, 14.5];
-  const MAX_STUFE = 9, SPIELZEIT = 180, VERLAENGERUNG = 60, ELIXIER_TAKT = 2.8;
+  const MAX_STUFE = 9, MAX_KOENIG = 13, SPIELZEIT = 180, VERLAENGERUNG = 60, ELIXIER_TAKT = 2.8;
 
   // rar: 0 gewöhnlich, 1 selten, 2 episch, 3 legendär · a: ab welcher Arena freigeschaltet
   const KARTEN = {
@@ -61,6 +61,15 @@
     { n: 'Hyrule', ab: 1500, e: '🗡️', gras: ['#8acb6b', '#7fbf60'] },
     { n: 'Multiversum', ab: 2000, e: '🌀', gras: ['#8573bd', '#7a68b2'] }
   ];
+  // Spielmodi (Ereignisse). trophaeen: ob Trophäen zählen
+  const MODI = {
+    normal:   { n: 'Ladder-Kampf', e: '⚔️', d: 'Der klassische Kampf um Trophäen.', trophaeen: 1 },
+    dreifach: { n: 'Dreifach-Elixier', e: '💧', d: 'Elixier lädt die ganze Zeit dreimal so schnell. Chaos garantiert!' },
+    tod:      { n: 'Plötzlicher Tod', e: '💀', d: 'Die erste Krone gewinnt. Kein Zurück.' },
+    spiegel:  { n: 'Spiegel-Duell', e: '🪞', d: 'Beide spielen mit demselben Deck. Wer spielt es besser?' },
+    zufall:   { n: 'Zufallsdeck', e: '🎲', d: 'Jeder bekommt 8 zufällige Karten aus dem ganzen Multiversum.' },
+    training: { n: 'Trainingslager', e: '🎯', d: 'Üben gegen einen gemütlichen Computer. Keine Trophäen.' }
+  };
   const STARTDECK = ['mario', 'minions', 'zombies', 'legolas', 'creeper', 'shrek', 'thor', 'hadouken'];
   const SPIELBAR = Object.keys(KARTEN).filter(k => !KARTEN[k].hidden);
 
@@ -75,8 +84,11 @@
   }
 
   class Sim {
-    constructor(decks, stufen) {
+    constructor(decks, stufen, opts) {
+      opts = opts || {};
       this.stufen = [0, 1].map(t => (stufen && stufen[t]) || {});
+      this.modus = MODI[opts.modus] ? opts.modus : 'normal';
+      this.koenig = [0, 1].map(t => Math.max(1, Math.min(MAX_KOENIG, Math.floor(+(opts.koenig && opts.koenig[t]) || 1))));
       this.zeit = 0; this.vorbei = false; this.sieger = -1; this.verl = false;
       this.kronen = [0, 0]; this.elixier = [5, 5]; this.nid = 0;
       this.ents = []; this.geschosse = []; this.zonen = []; this.fx = [];
@@ -85,12 +97,15 @@
         const unten = t === 0, ky = unten ? 29 : 3, py = unten ? 25.5 : 6.5;
         this.turm(t, 'king', 9, ky); this.turm(t, 'princess', 3.5, py); this.turm(t, 'princess', 14.5, py);
       }
+      // Plötzlicher Tod: von Anfang an Verlängerung, die erste Krone entscheidet
+      if (this.modus === 'tod') { this.verl = true; this.zeit = SPIELZEIT + VERLAENGERUNG - 180; }
     }
+    takt() { return this.modus === 'dreifach' ? 3 : this.doppelt() ? 2 : 1; }
     hand(t) { return this.stapel[t].slice(0, 4); }
     naechste(t) { return this.stapel[t][4]; }
     turm(team, art, x, y) {
-      const d = TUERME[art];
-      const e = { id: ++this.nid, team, key: art, kind: 'tower', x, y, r: d.r, hp: d.hp, max: d.hp, dmg: d.dmg, hs: d.hs, rng: d.rng,
+      const d = TUERME[art], f = Math.pow(1.07, this.koenig[team] - 1);
+      const e = { id: ++this.nid, team, key: art, kind: 'tower', x, y, r: d.r, hp: Math.round(d.hp * f), max: Math.round(d.hp * f), dmg: Math.round(d.dmg * f), hs: d.hs, rng: d.rng,
         tg: 'all', cd: 0, stun: 0, slow: 0, rage: 0, angriff: 0, deploy: 0, aktiv: art === 'princess', ziel: null };
       this.ents.push(e); return e;
     }
@@ -253,7 +268,7 @@
     step(dt) {
       if (this.vorbei) { this.fx.length > 200 && this.fx.splice(0, 100); return; }
       this.zeit += dt;
-      const takt = this.doppelt() ? 2 : 1;
+      const takt = this.takt();
       for (const t of [0, 1]) this.elixier[t] = Math.min(10, this.elixier[t] + dt / ELIXIER_TAKT * takt);
       if (!this.verl && this.zeit >= SPIELZEIT) {
         if (this.kronen[0] !== this.kronen[1]) return this.ende(this.kronen[0] > this.kronen[1] ? 0 : 1);
@@ -448,6 +463,6 @@
     }
   }
 
-  const api = { MAX_STUFE, W, H, FLUSS_O, FLUSS_U, BRUECKEN, SPIELZEIT, VERLAENGERUNG, KARTEN, TUERME, ARENEN, STARTDECK, SPIELBAR, arenaVon, deckPruefen, Sim, KI };
+  const api = { MAX_STUFE, MAX_KOENIG, MODI, W, H, FLUSS_O, FLUSS_U, BRUECKEN, SPIELZEIT, VERLAENGERUNG, KARTEN, TUERME, ARENEN, STARTDECK, SPIELBAR, arenaVon, deckPruefen, Sim, KI };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.COT = api;
 })(this);

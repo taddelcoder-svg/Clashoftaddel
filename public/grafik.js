@@ -510,7 +510,9 @@ Object.assign(FIGUREN, {
   truhe_silber: () => truhe('#78909c', '#cfd8dc', null),
   truhe_gold: () => truhe('#ffb300', '#fff59d', '#ff7043'),
   truhe_magisch: () => truhe('#7b1fa2', '#ffca28', '#e040fb'),
-  truhe_legendaer: () => truhe('#00bcd4', '#ffffff', '#ffeb3b')
+  truhe_legendaer: () => truhe('#00bcd4', '#ffffff', '#ffeb3b'),
+  truhe_gratis: () => truhe('#7cb342', '#dcedc8', '#ffffff'),
+  truhe_kronen: () => { const g = truhe('#1e88e5', '#ffca28', '#ffeb3b'); const k = gruppe(zyl('#ffc107', 0, 0, 0, 0.3, 0.16, { glanz: 1 })); for (let i = 0; i < 5; i++) { const w = i / 5 * Math.PI * 2; k.add(kegel('#ffc107', Math.cos(w) * 0.26, 0.16, Math.sin(w) * 0.26, 0.07, 0.18, { glanz: 1 })); } k.position.y = 1.4; g.add(k); return g; }
 });
 function zylGeoTeil(col, x, y, z, o, u, h) { return kegelstumpf(col, x, y, z, o, u, h); }
 
