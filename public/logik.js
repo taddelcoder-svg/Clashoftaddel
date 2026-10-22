@@ -3,7 +3,7 @@
 (function (root) {
   'use strict';
   const W = 18, H = 32, FLUSS_O = 15, FLUSS_U = 17, BRUECKEN = [3.5, 14.5];
-  const SPIELZEIT = 180, VERLAENGERUNG = 60, ELIXIER_TAKT = 2.8;
+  const MAX_STUFE = 9, SPIELZEIT = 180, VERLAENGERUNG = 60, ELIXIER_TAKT = 2.8;
 
   // rar: 0 gewöhnlich, 1 selten, 2 episch, 3 legendär · a: ab welcher Arena freigeschaltet
   const KARTEN = {
@@ -32,11 +32,26 @@
     pikachu:   { n: 'Pikachu', e: '⚡', q: 'Pokémon', c: 4, t: 'troop', rar: 3, a: 4, hp: 560, dmg: 100, hs: 1.7, spd: 1.3, rng: 4.5, tg: 'all', r: 0.4, col: '#fdd835', proj: '#fff176', stun: 0.5, chain: 1, d: 'Donnerblitz betäubt und springt auf einen zweiten Gegner über.' },
     elsa:      { n: 'Elsas Eis', e: '❄️', q: 'Die Eiskönigin', c: 4, t: 'spell', rar: 2, a: 4, rad: 3, dmg: 100, stun: 4, col: '#b3e5fc', d: 'Friert alles im Kreis 4 s lang ein.' },
     godzilla:  { n: 'Godzilla', e: '🦖', q: 'Godzilla', c: 8, t: 'troop', rar: 2, a: 5, hp: 5200, dmg: 280, hs: 2.2, spd: 0.6, rng: 0.8, tg: 'buildings', r: 0.85, col: '#455a64', death: { rad: 2.5, dmg: 380 }, d: 'König der Monster, will nur Gebäude. Beim Fall bebt die Erde.' },
-    goku:      { n: 'Goku', e: '🔥', q: 'Dragon Ball', c: 6, t: 'troop', rar: 3, a: 5, hp: 1250, dmg: 1050, hs: 5, spd: 0.8, rng: 5, tg: 'ground', r: 0.5, col: '#ff9800', splash: 1.6, charge: 1, d: 'Lädt das Kamehameha auf – dann wird es heftig.' }
+    goku:      { n: 'Goku', e: '🔥', q: 'Dragon Ball', c: 6, t: 'troop', rar: 3, a: 5, hp: 1250, dmg: 1050, hs: 5, spd: 0.8, rng: 5, tg: 'ground', r: 0.5, col: '#ff9800', splash: 1.6, charge: 1, d: 'Lädt das Kamehameha auf – dann wird es heftig.' },
+    kirby:     { n: 'Kirby', e: '🩷', q: 'Kirby', c: 2, t: 'troop', rar: 0, a: 0, hp: 430, dmg: 95, hs: 0.9, spd: 1.3, rng: 0.5, tg: 'ground', r: 0.4, col: '#f48fb1', d: 'Klein, rund und hungrig. Günstiger Nahkämpfer.' },
+    pacman:    { n: 'Pac-Man', e: '🟡', q: 'Pac-Man', c: 3, t: 'troop', rar: 1, a: 0, hp: 650, dmg: 115, hs: 0.8, spd: 2.0, rng: 0.5, tg: 'ground', r: 0.42, col: '#ffeb3b', d: 'Waka waka! Superschnell und frisst alles am Boden.' },
+    spongebob: { n: 'SpongeBob', e: '🧽', q: 'SpongeBob Schwammkopf', c: 2, t: 'troop', rar: 0, a: 1, hp: 320, dmg: 75, hs: 1.0, spd: 1.1, rng: 4, tg: 'all', r: 0.4, col: '#fff176', proj: '#b3e5fc', d: 'Pustet Seifenblasen auf Boden- und Luftziele.' },
+    batman:    { n: 'Batman', e: '🦇', q: 'DC – Batman', c: 4, t: 'troop', rar: 2, a: 1, hp: 950, dmg: 200, hs: 1.1, spd: 1.45, rng: 0.7, tg: 'ground', jump: 1, r: 0.45, col: '#37474f', d: 'Gleitet mit dem Umhang über den Fluss.' },
+    bowser:    { n: 'Bowser', e: '🐢', q: 'Super Mario', c: 6, t: 'troop', rar: 2, a: 1, hp: 2700, dmg: 170, hs: 1.8, spd: 0.8, rng: 2, tg: 'ground', r: 0.7, col: '#8bc34a', splash: 1.6, d: 'Panzer-Koloss mit Feueratem, der Gruppen grillt.' },
+    dk:        { n: 'Donkey Kong', e: '🦍', q: 'Donkey Kong', c: 6, t: 'troop', rar: 1, a: 2, hp: 2100, dmg: 190, hs: 1.6, spd: 0.75, rng: 5, tg: 'buildings', r: 0.65, col: '#6d4c41', proj: '#a1887f', d: 'Wirft Fässer auf Gebäude – aus sicherer Entfernung.' },
+    harry:     { n: 'Harry Potter', e: '🪄', q: 'Harry Potter', c: 4, t: 'troop', rar: 1, a: 2, hp: 600, dmg: 155, hs: 1.2, spd: 1.0, rng: 5.5, tg: 'all', r: 0.42, col: '#7b1fa2', proj: '#ff5252', d: 'Stupor! Schnelle Zauberblitze auf alles.' },
+    yoda:      { n: 'Yoda', e: '🟢', q: 'Star Wars', c: 4, t: 'troop', rar: 3, a: 2, hp: 560, dmg: 130, hs: 1.4, spd: 1.1, rng: 4.5, tg: 'all', r: 0.35, col: '#9ccc65', proj: '#b2ff59', push: 0.9, d: 'Die Macht stößt Gegner zurück, sie tut.' },
+    senzu:     { n: 'Senzu-Bohne', e: '🫘', q: 'Dragon Ball', c: 3, t: 'spell', rar: 1, a: 2, rad: 3, heal: 550, col: '#9ccc65', d: 'Heilt eigene Truppen im Kreis um 550 Leben.' },
+    chief:     { n: 'Master Chief', e: '🪖', q: 'Halo', c: 5, t: 'troop', rar: 1, a: 3, hp: 1350, dmg: 70, hs: 0.45, spd: 1.0, rng: 5, tg: 'all', r: 0.5, col: '#558b2f', proj: '#ffee58', d: 'Spartaner mit Sturmgewehr – Dauerfeuer auf alles.' },
+    homer:     { n: 'Homer', e: '🍩', q: 'Die Simpsons', c: 3, t: 'troop', rar: 0, a: 3, hp: 1450, dmg: 85, hs: 1.5, spd: 0.8, rng: 0.6, tg: 'ground', r: 0.55, col: '#fdd835', d: 'Nimmt viel Schaden. Nennt sich selbst Tank. Nennt das Mittagessen.' },
+    panzer:    { n: 'Stachi-Panzer', e: '🐚', q: 'Mario Kart', c: 6, t: 'spell', rar: 2, a: 3, rad: 2, dmg: 1050, col: '#2979ff', d: 'Der blaue Panzer: riesiger Schaden auf kleiner Fläche.' },
+    kratos:    { n: 'Kratos', e: '🪓', q: 'God of War', c: 5, t: 'troop', rar: 2, a: 4, hp: 1650, dmg: 270, hs: 1.4, spd: 1.0, rng: 0.9, tg: 'ground', r: 0.55, col: '#eceff1', splash: 1.3, d: 'Die Leviathan-Axt trifft alle Gegner vor ihm.' },
+    groot:     { n: 'Groot', e: '🌳', q: 'Guardians of the Galaxy', c: 6, t: 'troop', rar: 3, a: 4, hp: 3600, dmg: 150, hs: 1.5, spd: 0.75, rng: 0.8, tg: 'ground', r: 0.7, col: '#795548', spawnTod: 'babygroot', spawnN: 3, d: 'Ich bin Groot. Zerfällt in drei Baby-Groots.' },
+    babygroot: { n: 'Baby-Groot', e: '🌱', c: 0, t: 'troop', hidden: 1, hp: 220, dmg: 70, hs: 1.0, spd: 1.2, rng: 0.5, tg: 'ground', r: 0.3, col: '#8d6e63' }
   };
   const TUERME = {
-    princess: { hp: 2600, dmg: 95, hs: 0.8, rng: 7.5, r: 1.4 },
-    king:     { hp: 4200, dmg: 115, hs: 1.0, rng: 7, r: 1.8 }
+    princess: { hp: 1750, dmg: 72, hs: 0.8, rng: 7.5, r: 1.4 },
+    king:     { hp: 2900, dmg: 85, hs: 1.0, rng: 7, r: 1.8 }
   };
   const ARENEN = [
     { n: 'Pilzkönigreich', ab: 0, e: '🍄', gras: ['#7cc35a', '#71b850'] },
@@ -60,7 +75,8 @@
   }
 
   class Sim {
-    constructor(decks) {
+    constructor(decks, stufen) {
+      this.stufen = [0, 1].map(t => (stufen && stufen[t]) || {});
       this.zeit = 0; this.vorbei = false; this.sieger = -1; this.verl = false;
       this.kronen = [0, 0]; this.elixier = [5, 5]; this.nid = 0;
       this.ents = []; this.geschosse = []; this.zonen = []; this.fx = [];
@@ -112,23 +128,28 @@
       return true;
     }
 
+    faktor(team, key) { const l = Math.max(1, Math.min(MAX_STUFE, Math.floor(+this.stufen[team][key] || 1))); return Math.pow(1.1, l - 1); }
     einheit(team, key, x, y) {
-      const k = KARTEN[key];
+      const k = KARTEN[key], f = this.faktor(team, KARTEN[key].hidden ? (this.quelle || key) : key);
       const e = { id: ++this.nid, team, key, kind: k.t === 'building' ? 'building' : 'troop', x: klemmen(x, 0.4, W - 0.4), y: klemmen(y, 0.4, H - 0.4),
-        r: k.r || 0.45, hp: k.hp, max: k.hp, dmg: k.dmg || 0, hs: k.hs || 1, rng: k.rng || 0, tg: k.tg || 'ground', fly: !!k.fly,
+        r: k.r || 0.45, hp: Math.round(k.hp * f), max: Math.round(k.hp * f), dmg: Math.round((k.dmg || 0) * f), hs: k.hs || 1, rng: k.rng || 0, tg: k.tg || 'ground', fly: !!k.fly,
         cd: 0, stun: 0, slow: 0, rage: 0, angriff: 0, deploy: k.t === 'building' ? 0.6 : 1, ziel: null, lade: 0, ramp: 0, strahl: 0, spawnT: k.every || 0 };
       this.ents.push(e); return e;
     }
 
     zauber(team, key, x, y) {
-      const k = KARTEN[key];
+      const k = KARTEN[key], f = this.faktor(team, key);
       this.fx.push({ a: 'zauber', key, x, y, rad: k.rad, col: k.col });
       if (k.rage) { this.zonen.push({ team, x, y, rad: k.rad, t: k.rage }); return; }
+      if (k.heal) {
+        for (const e of this.ents) if (e.team === team && e.kind === 'troop' && e.hp > 0 && Math.hypot(e.x - x, e.y - y) <= k.rad + e.r * 0.5) e.hp = Math.min(e.max, e.hp + k.heal * f);
+        return;
+      }
       for (const e of this.ents) {
         if (e.team === team || e.hp <= 0 || Math.hypot(e.x - x, e.y - y) > k.rad + e.r * 0.5) continue;
         const turm = e.kind === 'tower';
-        if (k.half) this.schaden(e, e.kind === 'troop' ? Math.ceil(e.hp / 2) : k.dmg * (turm ? 0.35 : 1));
-        else if (k.dmg) this.schaden(e, turm ? Math.round(k.dmg * 0.35) : k.dmg);
+        if (k.half) this.schaden(e, e.kind === 'troop' ? Math.ceil(e.hp / 2) : k.dmg * f * (turm ? 0.35 : 1));
+        else if (k.dmg) this.schaden(e, Math.round(k.dmg * f * (turm ? 0.35 : 1)));
         if (k.stun) { e.stun = Math.max(e.stun, k.stun); e.lade = 0; e.ramp = 0; }
         if (k.push && e.kind === 'troop' && e.hp > 0) {
           const d = Math.hypot(e.x - x, e.y - y) || 1;
@@ -156,7 +177,8 @@
         return;
       }
       const k = KARTEN[e.key];
-      if (k.death) this.flaeche(e.team, e.x, e.y, k.death.rad, k.death.dmg, 'ground', k.col);
+      if (k.death) this.flaeche(e.team, e.x, e.y, k.death.rad, k.death.dmg * this.faktor(e.team, e.key), 'ground', k.col);
+      if (k.spawnTod) { this.quelle = e.key; for (let i = 0; i < k.spawnN; i++) { const w = i / k.spawnN * Math.PI * 2; this.einheit(e.team, k.spawnTod, e.x + Math.cos(w) * 0.6, e.y + Math.sin(w) * 0.6).deploy = 0.3; } this.quelle = null; }
     }
 
     ende(sieger) {
@@ -213,7 +235,7 @@
       if (u.kind === 'tower' || k.proj) {
         this.geschosse.push({ team: u.team, x: u.x, y: u.y - (u.kind === 'tower' ? 0.6 : 0), ziel, tx: ziel.x, ty: ziel.y, v: u.kind === 'tower' ? 14 : 11,
           dmg: u.dmg, splash: k.splash || 0, tg: u.tg, col: u.kind === 'tower' ? '#fff3e0' : k.proj, key: u.kind === 'tower' ? u.key : u.key,
-          miss: k.miss && Math.random() < k.miss, stun: k.stun || 0, slow: k.slow || 0, chain: k.chain || 0 });
+          miss: k.miss && Math.random() < k.miss, stun: k.stun || 0, slow: k.slow || 0, chain: k.chain || 0, push: k.push || 0 });
         return;
       }
       if (k.boom) { this.flaeche(u.team, u.x, u.y, k.boom, u.dmg, 'all', '#a5d6a7'); u.hp = 0; this.fx.push({ a: 'tod', x: u.x, y: u.y, r: u.r, kind: 'troop', team: u.team }); return; }
@@ -266,7 +288,7 @@
         if (u.kind === 'building') {
           u.hp -= u.max / k.life * dt;
           if (u.hp <= 0) { this.tod(u); continue; }
-          if (k.spawn && (u.spawnT -= dt) <= 0) { u.spawnT = k.every; neu.push([u.team, k.spawn, u.x, u.y + (u.team === 0 ? -1 : 1)]); }
+          if (k.spawn && (u.spawnT -= dt) <= 0) { u.spawnT = k.every; neu.push([u.team, k.spawn, u.x, u.y + (u.team === 0 ? -1 : 1), u.key]); }
         }
         if (u.stun > 0) { u.lade = 0; u.ramp = 0; continue; }
         if (u.kind === 'tower' && !u.aktiv) continue;
@@ -298,7 +320,7 @@
           if (u.fly || k.jump || this.begehbar(u.x, ny)) u.y = klemmen(ny, 0.3, H - 0.3);
         }
       }
-      for (const n of neu) this.einheit(...n);
+      for (const n of neu) { this.quelle = n[4]; this.einheit(n[0], n[1], n[2], n[3]); this.quelle = null; }
 
       for (const g of this.geschosse) {
         if (g.ziel && g.ziel.hp > 0) { g.tx = g.ziel.x; g.ty = g.ziel.y; }
@@ -311,6 +333,7 @@
             this.schaden(g.ziel, g.dmg);
             if (g.stun) { g.ziel.stun = Math.max(g.ziel.stun, g.stun); g.ziel.lade = 0; g.ziel.ramp = 0; }
             if (g.slow) g.ziel.slow = Math.max(g.ziel.slow, g.slow);
+            if (g.push && g.ziel.kind === 'troop' && g.ziel.hp > 0) { const d = Math.hypot(g.ziel.x - g.x, g.ziel.y - g.y) || 1; this.schieben(g.ziel, (g.ziel.x - g.x) / d * g.push, (g.ziel.y - g.y) / d * g.push); }
             this.fx.push({ a: 'hieb', x: g.tx, y: g.ty, col: g.col });
             if (g.chain) {
               let n = null, nd = 3;
@@ -425,6 +448,6 @@
     }
   }
 
-  const api = { W, H, FLUSS_O, FLUSS_U, BRUECKEN, SPIELZEIT, VERLAENGERUNG, KARTEN, TUERME, ARENEN, STARTDECK, SPIELBAR, arenaVon, deckPruefen, Sim, KI };
+  const api = { MAX_STUFE, W, H, FLUSS_O, FLUSS_U, BRUECKEN, SPIELZEIT, VERLAENGERUNG, KARTEN, TUERME, ARENEN, STARTDECK, SPIELBAR, arenaVon, deckPruefen, Sim, KI };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.COT = api;
 })(this);

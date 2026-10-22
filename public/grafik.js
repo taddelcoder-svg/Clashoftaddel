@@ -315,6 +315,154 @@ const FIGUREN = {
     g.add(ball); g.userData.ball = ball;
     return g;
   },
+  kirby() {
+    const g = new THREE.Group(), k = new THREE.Group();
+    k.add(kugel('#f8a5c2', 0, 0, 0, 0.45, 0.43, 0.42));
+    for (const sx of [-1, 1]) { k.add(kugel('#1a237e', sx * 0.1, 0.08, 0.36, 0.05, 0.12, 0.04), kugel('#ffffff', sx * 0.1, 0.13, 0.39, 0.025, 0.04, 0.02, { leucht: 1 }), kugel('#ff6f91', sx * 0.22, -0.04, 0.33, 0.07, 0.04, 0.03)); }
+    k.add(kugel('#c2185b', 0, -0.08, 0.4, 0.04, 0.03, 0.02));
+    k.position.y = 0.55; g.add(k);
+    const beinL = gruppe(kugel('#e53935', 0, 0, 0.05, 0.17, 0.1, 0.24)), beinR = beinL.clone();
+    beinL.position.set(-0.18, 0.1, 0); beinR.position.set(0.18, 0.1, 0); g.add(beinL, beinR);
+    const armL = gruppe(kugel('#f8a5c2', 0, -0.05, 0, 0.12, 0.09, 0.1)), armR = armL.clone();
+    armL.position.set(-0.42, 0.55, 0.05); armR.position.set(0.42, 0.55, 0.05); g.add(armL, armR);
+    g.userData = { kopf: k, beinL, beinR, armL, armR };
+    return g;
+  },
+  pacman() {
+    const g = new THREE.Group(), k = new THREE.Group();
+    const oben = new THREE.Mesh(new THREE.SphereGeometry(0.45, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2), M('#ffeb3b'));
+    const unten = new THREE.Mesh(new THREE.SphereGeometry(0.45, 24, 12, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2), M('#ffeb3b'));
+    oben.castShadow = unten.castShadow = true;
+    k.add(oben, unten, kugel('#111', -0.17, 0.25, 0.25, 0.05, 0.07, 0.04), kugel('#111', 0.17, 0.25, 0.25, 0.05, 0.07, 0.04));
+    k.position.y = 0.5; g.add(k);
+    const beinL = gruppe(box('#5d4037', 0, 0, 0.05, 0.12, 0.08, 0.2)), beinR = beinL.clone();
+    beinL.position.set(-0.15, 0.04, 0); beinR.position.set(0.15, 0.04, 0); g.add(beinL, beinR);
+    g.userData = { kopf: k, beinL, beinR, maulO: oben, maulU: unten };
+    return g;
+  },
+  spongebob() {
+    const g = new THREE.Group(), k = new THREE.Group();
+    k.add(box('#fff176', 0, 0, 0, 0.6, 0.62, 0.3));
+    for (let i = 0; i < 6; i++) k.add(kugel('#c0ca33', -0.22 + (i % 3) * 0.22, -0.2 + Math.floor(i / 3) * 0.4, 0.15, 0.04, 0.05, 0.02));
+    augen(k, 0.1, 0.16, 0.11, 0.1, '#1565c0');
+    k.add(box('#8d1c1c', 0, -0.12, 0.155, 0.22, 0.06, 0.01), box('#ffffff', -0.04, -0.09, 0.16, 0.05, 0.05, 0.01), box('#ffffff', 0.04, -0.09, 0.16, 0.05, 0.05, 0.01));
+    k.add(box('#ffffff', 0, -0.36, 0, 0.6, 0.1, 0.3), box('#6d4c41', 0, -0.47, 0, 0.6, 0.12, 0.3), box('#e53935', 0, -0.36, 0.16, 0.06, 0.1, 0.01));
+    k.position.y = 0.82; g.add(k);
+    const beinL = gruppe(box('#fff176', 0, -0.12, 0, 0.06, 0.25, 0.06), box('#111', 0, -0.27, 0.04, 0.12, 0.07, 0.18)), beinR = beinL.clone();
+    beinL.position.set(-0.12, 0.3, 0); beinR.position.set(0.12, 0.3, 0); g.add(beinL, beinR);
+    const armL = gruppe(box('#fff176', 0, -0.15, 0, 0.05, 0.3, 0.05)), armR = armL.clone();
+    armL.position.set(-0.33, 0.85, 0); armR.position.set(0.33, 0.85, 0); g.add(armL, armR);
+    g.userData = { kopf: k, beinL, beinR, armL, armR };
+    return g;
+  },
+  batman() {
+    const g = chibi({ haut: '#455a64', koerper: '#546e7a', arm: '#546e7a', hose: '#37474f', hand: '#212121', schuh: '#212121', ohneAugen: 1, guertel: '#fbc02d' });
+    const k = g.userData.kopf;
+    k.add(kugel('#263238', 0, 0.06, -0.02, 0.37, 0.33, 0.35), kugel('#ffe0bd', 0, -0.17, 0.2, 0.2, 0.12, 0.13));
+    k.add(dreh(kegel('#263238', -0.17, 0.42, 0, 0.06, 0.25), 0, 0, 0.15), dreh(kegel('#263238', 0.17, 0.42, 0, 0.06, 0.25), 0, 0, -0.15));
+    k.add(box('#ffffff', -0.1, 0.04, 0.32, 0.1, 0.035, 0.02, { leucht: 1 }), box('#ffffff', 0.1, 0.04, 0.32, 0.1, 0.035, 0.02, { leucht: 1 }));
+    g.userData.koerper.add(kugel('#fbc02d', 0, 0.08, 0.22, 0.12, 0.06, 0.02), box('#111', 0, 0.08, 0.235, 0.14, 0.03, 0.01));
+    const umhang = kegelstumpf('#212121', 0, 0.55, -0.12, 0.18, 0.55, 0.85); umhang.scale.z = 0.25; g.add(umhang);
+    return g;
+  },
+  bowser() {
+    const g = chibi({ haut: '#fdd835', koerper: '#ffe082', arm: '#fdd835', hose: '#fdd835', schuh: '#ffb74d', breit: 1.5, augen: '#b71c1c', kopf: 1.05 });
+    const k = g.userData.kopf;
+    k.add(kugel('#ff7043', 0, 0.2, -0.08, 0.3, 0.2, 0.3), box('#fdd835', 0, -0.1, 0.28, 0.32, 0.18, 0.22));
+    for (let i = 0; i < 4; i++) k.add(dreh(kegel('#ff7043', 0, 0.3 - i * 0.07, -0.18 - i * 0.07, 0.06, 0.18), -0.9));
+    k.add(dreh(kegel('#fff8e1', -0.24, 0.3, 0, 0.06, 0.28), 0, 0, 0.6), dreh(kegel('#fff8e1', 0.24, 0.3, 0, 0.06, 0.28), 0, 0, -0.6));
+    const panzer = gruppe(kugel('#2e7d32', 0, 0, 0, 0.42, 0.44, 0.3), zyl('#fff8e1', 0, 0, 0, 0.43, 0.05));
+    for (let i = 0; i < 6; i++) { const w = i / 6 * Math.PI * 2; panzer.add(dreh(kegel('#fff8e1', Math.cos(w) * 0.2, Math.sin(w) * 0.2, -0.22, 0.05, 0.16), -Math.PI / 2)); }
+    panzer.position.set(0, 0.62, -0.18); g.add(panzer);
+    for (const a of [g.userData.armL, g.userData.armR]) a.add(zyl('#212121', 0, -0.1, 0, 0.11, 0.06));
+    return g;
+  },
+  dk() {
+    const g = chibi({ haut: '#6d4c41', koerper: '#5d4037', arm: '#5d4037', hose: '#5d4037', schuh: '#4e342e', hand: '#bcaaa4', breit: 1.5, augen: '#3e2723' });
+    const k = g.userData.kopf;
+    k.add(kugel('#bcaaa4', 0, -0.08, 0.2, 0.26, 0.18, 0.16), kugel('#3e2723', 0, 0.2, 0, 0.32, 0.12, 0.3), kugel('#bcaaa4', -0.12, 0.08, 0.24, 0.1, 0.12, 0.06), kugel('#bcaaa4', 0.12, 0.08, 0.24, 0.1, 0.12, 0.06));
+    g.userData.koerper.add(box('#e53935', -0.08, 0.02, 0.2, 0.18, 0.18, 0.04), box('#fdd835', -0.08, 0.02, 0.22, 0.06, 0.08, 0.01));
+    for (const a of [g.userData.armL, g.userData.armR]) a.scale.set(1.4, 1.35, 1.4);
+    const fass = gruppe(zyl('#8d6e63', 0, 0, 0, 0.2, 0.3), zyl('#424242', 0, 0.1, 0, 0.21, 0.03), zyl('#424242', 0, -0.1, 0, 0.21, 0.03));
+    fass.position.set(0, -0.35, 0.1); fass.rotation.z = Math.PI / 2; g.userData.armR.add(fass);
+    return g;
+  },
+  harry() {
+    const g = chibi({ haut: '#ffe0bd', koerper: '#212121', arm: '#212121', hose: '#424242', schuh: '#212121', guertel: '#b71c1c', augen: '#2e7d32' });
+    const k = g.userData.kopf;
+    k.add(kugel('#3e2723', 0, 0.13, -0.03, 0.37, 0.25, 0.34), box('#3e2723', 0, 0.22, 0.2, 0.36, 0.08, 0.12));
+    for (const sx of [-1, 1]) k.add(dreh(new THREE.Mesh(new THREE.TorusGeometry(0.08, 0.012, 6, 16), M('#111')), 0, 0, 0)).children.at(-1).position.set(sx * 0.12, 0.02, 0.33);
+    k.add(box('#111', 0, 0.02, 0.33, 0.06, 0.012, 0.012), box('#b71c1c', 0.08, 0.17, 0.3, 0.02, 0.07, 0.01));
+    g.userData.koerper.add(box('#b71c1c', 0, 0.16, 0.2, 0.06, 0.12, 0.03), box('#fbc02d', 0, 0.1, 0.205, 0.06, 0.03, 0.03));
+    const stab = gruppe(zyl('#5d4037', 0, 0.2, 0, 0.02, 0.4), kugel('#ff8a80', 0, 0.42, 0, 0.05, 0.05, 0.05, { leucht: 1 }));
+    stab.position.set(0, -0.32, 0.05); stab.rotation.x = 1.2; g.userData.armR.add(stab);
+    return g;
+  },
+  yoda() {
+    const g = chibi({ haut: '#9ccc65', koerper: '#a1887f', arm: '#a1887f', hose: '#8d6e63', schuh: '#6d4c41', augen: '#3e2723', kopf: 1.1 });
+    const k = g.userData.kopf;
+    for (const sx of [-1, 1]) { const ohr = kegel('#9ccc65', sx * 0.48, 0.05, -0.02, 0.12, 0.5); ohr.rotation.z = -sx * Math.PI / 2.2; ohr.scale.z = 0.05; k.add(ohr); }
+    k.add(kugel('#e0e0e0', 0, 0.3, -0.05, 0.12, 0.05, 0.12));
+    g.userData.koerper.add(kegelstumpf('#8d6e63', 0, -0.2, 0, 0.25, 0.38, 0.4));
+    const stock = gruppe(zyl('#6d4c41', 0, 0.1, 0, 0.025, 0.8));
+    stock.position.set(0, -0.3, 0.05); g.userData.armL.add(stock);
+    return g;
+  },
+  chief() {
+    const g = chibi({ haut: '#558b2f', koerper: '#689f38', arm: '#558b2f', hose: '#558b2f', schuh: '#33691e', hand: '#263238', ohneAugen: 1, breit: 1.2, guertel: '#37474f' });
+    const k = g.userData.kopf;
+    k.add(kugel('#689f38', 0, 0, 0, 0.37, 0.35, 0.35, { glanz: 1 }), kugel('#ffb300', 0, 0.0, 0.2, 0.26, 0.13, 0.18, { glanz: 1 }));
+    g.userData.koerper.add(box('#455a64', 0, 0.06, 0.18, 0.4, 0.22, 0.1));
+    const gewehr = gruppe(box('#37474f', 0, 0, 0.15, 0.08, 0.12, 0.55), box('#263238', 0, -0.1, 0.05, 0.06, 0.14, 0.08));
+    gewehr.position.set(0, -0.32, 0.05); g.userData.armR.add(gewehr);
+    g.userData.armR.rotation.x = -1.1; g.userData.armL.rotation.x = -1.0;
+    return g;
+  },
+  homer() {
+    const g = chibi({ haut: '#fdd835', koerper: '#ffffff', arm: '#ffffff', hose: '#1e88e5', schuh: '#424242', breit: 1.45, augen: '#111' });
+    const k = g.userData.kopf;
+    k.add(kugel('#a1887f', 0, -0.17, 0.12, 0.27, 0.15, 0.24), kugel('#fdd835', 0, -0.03, 0.34, 0.07, 0.06, 0.08));
+    k.add(dreh(new THREE.Mesh(new THREE.TorusGeometry(0.08, 0.01, 4, 12, Math.PI), M('#3e2723')), 0, 0, 0)).children.at(-1).position.set(0, 0.36, 0);
+    const donut = new THREE.Mesh(new THREE.TorusGeometry(0.1, 0.05, 8, 16), M('#f06292')); donut.position.set(0, -0.32, 0.05); donut.rotation.x = Math.PI / 2;
+    g.userData.armR.add(donut);
+    return g;
+  },
+  kratos() {
+    const g = chibi({ haut: '#eceff1', koerper: '#eceff1', arm: '#eceff1', hose: '#5d4037', schuh: '#3e2723', breit: 1.35, augen: '#ffb300', guertel: '#8d6e63' });
+    const k = g.userData.kopf;
+    k.add(kugel('#4e342e', 0, -0.2, 0.18, 0.26, 0.16, 0.15), box('#b71c1c', 0.2, 0.08, 0.27, 0.03, 0.3, 0.02), box('#b71c1c', 0, 0.2, 0.25, 0.03, 0.25, 0.08));
+    g.userData.koerper.add(box('#b71c1c', 0.08, 0.05, 0.22, 0.06, 0.4, 0.02));
+    const axt = gruppe(zyl('#5d4037', 0, 0.15, 0, 0.03, 0.6), box('#b0bec5', 0.12, 0.42, 0, 0.26, 0.22, 0.04, { glanz: 1 }), box('#4fc3f7', 0.0, 0.34, 0, 0.04, 0.06, 0.05, { leucht: 1 }));
+    axt.position.set(0, -0.32, 0.05); axt.rotation.x = 1.2; g.userData.armR.add(axt);
+    return g;
+  },
+  groot() {
+    const g = chibi({ haut: '#8d6e63', koerper: '#795548', arm: '#795548', hose: '#6d4c41', schuh: '#5d4037', breit: 1.3, augen: '#3e2723' });
+    const k = g.userData.kopf;
+    for (let i = 0; i < 6; i++) { const w = i / 6 * Math.PI * 2; k.add(dreh(kegel('#6d4c41', Math.cos(w) * 0.18, 0.32, Math.sin(w) * 0.18, 0.05, 0.25), Math.sin(w) * 0.4, 0, -Math.cos(w) * 0.4)); }
+    k.add(kugel('#66bb6a', 0.2, 0.38, 0.05, 0.1, 0.06, 0.08), kugel('#66bb6a', -0.15, 0.4, -0.1, 0.08, 0.05, 0.07));
+    for (let i = 0; i < 5; i++) g.userData.koerper.add(box('#5d4037', -0.2 + i * 0.1, 0, 0.2, 0.025, 0.5, 0.02));
+    for (const a of [g.userData.armL, g.userData.armR]) a.scale.set(1, 1.5, 1);
+    return g;
+  },
+  babygroot() {
+    const g = chibi({ haut: '#a1887f', koerper: '#8d6e63', hose: '#795548', schuh: '#6d4c41', kopf: 1.2, augen: '#3e2723' });
+    g.userData.kopf.add(kugel('#66bb6a', 0.12, 0.4, 0, 0.1, 0.05, 0.08), dreh(kegel('#795548', 0, 0.38, 0, 0.04, 0.2), 0, 0, 0.3));
+    return g;
+  },
+  senzu() {
+    const g = new THREE.Group();
+    for (const [x, y, rz] of [[0, 0.9, 0.3], [-0.3, 0.6, -0.6], [0.32, 0.55, 1.2]]) { const b = kugel('#aed581', x, y, 0, 0.32, 0.2, 0.2, { glanz: 1 }); b.rotation.z = rz; g.add(b); }
+    g.add(kugel('#e8f5e9', 0.1, 1.0, 0.15, 0.05, 0.05, 0.03, { leucht: 1 }));
+    return g;
+  },
+  panzer() {
+    const g = gruppe(kugel('#2979ff', 0, 0.8, 0, 0.55, 0.4, 0.55, { glanz: 1 }), zyl('#ffffff', 0, 0.55, 0, 0.6, 0.12));
+    for (let i = 0; i < 6; i++) { const w = i / 6 * Math.PI * 2; g.add(dreh(kegel('#ffffff', Math.cos(w) * 0.32, 0.95, Math.sin(w) * 0.32, 0.08, 0.25), Math.sin(w) * 0.6, 0, -Math.cos(w) * 0.6)); }
+    g.add(kegel('#ffffff', 0, 1.3, 0, 0.09, 0.25));
+    for (const s of [-1, 1]) { const f = kugel('#ffffff', s * 0.6, 0.85, 0, 0.3, 0.12, 0.05); f.rotation.z = s * 0.4; g.add(f); }
+    return g;
+  },
   // Zauber-Symbole (nur für Kartenbilder)
   thor() {
     const g = gruppe(box('#90a4ae', 0, 1.0, 0, 0.75, 0.42, 0.42, { glanz: 1 }), box('#607d8b', 0, 1.0, 0, 0.77, 0.12, 0.44), zyl('#6d4c41', 0, 0.45, 0, 0.07, 0.75), zyl('#4e342e', 0, 0.2, 0, 0.08, 0.2));
@@ -343,6 +491,27 @@ const FIGUREN = {
     return g;
   }
 };
+// Truhen (für Menü und Öffnen)
+function truhe(holz, beschlag, edel) {
+  const g = new THREE.Group();
+  g.add(box(holz, 0, 0.4, 0, 1.4, 0.8, 0.95, { glanz: edel }));
+  const deckel = new THREE.Mesh(new THREE.CylinderGeometry(0.48, 0.48, 1.4, 20, 1, false, 0, Math.PI), M(holz, { glanz: edel }));
+  deckel.rotation.z = Math.PI / 2; deckel.position.y = 0.8; deckel.castShadow = true; g.add(deckel);
+  for (const x of [-0.55, 0, 0.55]) {
+    g.add(box(beschlag, x, 0.4, 0, 0.14, 0.84, 0.99, { glanz: 1 }));
+    const b = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.14, 20, 1, false, 0, Math.PI), M(beschlag, { glanz: 1 })); b.rotation.z = Math.PI / 2; b.position.set(x, 0.8, 0); g.add(b);
+  }
+  g.add(box(beschlag, 0, 0.78, 0.5, 0.26, 0.32, 0.08, { glanz: 1 }), box('#212121', 0, 0.74, 0.55, 0.06, 0.1, 0.02));
+  if (edel) g.add(kugel(edel, 0, 0.95, 0.52, 0.09, 0.09, 0.05, { leucht: 1 }));
+  return g;
+}
+Object.assign(FIGUREN, {
+  truhe_holz: () => truhe('#8d6e63', '#5d4037'),
+  truhe_silber: () => truhe('#78909c', '#cfd8dc', null),
+  truhe_gold: () => truhe('#ffb300', '#fff59d', '#ff7043'),
+  truhe_magisch: () => truhe('#7b1fa2', '#ffca28', '#e040fb'),
+  truhe_legendaer: () => truhe('#00bcd4', '#ffffff', '#ffeb3b')
+});
 function zylGeoTeil(col, x, y, z, o, u, h) { return kegelstumpf(col, x, y, z, o, u, h); }
 
 /* Turm-Figuren */
@@ -518,28 +687,30 @@ function arenaBauen(arena) {
 
 /* ---------- Kamera ---------- */
 let bereich = { oben: 0, unten: 0 };
-export function groesse(oben, unten) {
+export function groesse(oben, unten, rechts) {
   const c = S.r.domElement, w = c.clientWidth, h = c.clientHeight;
   if (!w || !h) return;
   S.r.setSize(w, h, false);
-  bereich = { oben: oben || 0, unten: unten || 0, w, h };
+  bereich = { oben: oben || 0, unten: unten || 0, rechts: rechts || 0, w, h };
   kameraSetzen();
 }
 function kameraSetzen() {
-  const { w, h, oben, unten } = bereich; if (!w) return;
+  const { w, h, oben, unten, rechts } = bereich; if (!w) return;
   const k = S.kamera;
   if (S.modus === 'kampf') {
-    const rh = Math.max(100, h - oben - unten);
-    k.aspect = w / rh; k.fov = 36; k.clearViewOffset();
-    const s = S.team === 1 ? -1 : 1, neig = 62 * Math.PI / 180, ziel = new THREE.Vector3(0, 0, s * 1.2);
+    const rh = Math.max(100, h - oben - unten), rw = Math.max(100, w - rechts);
+    k.aspect = rw / rh; k.fov = 36; k.clearViewOffset();
+    // Breite Bildschirme (iPad quer): flacher schauen, dann wird das Feld größer
+    const quer = rw / rh > 0.75;
+    const s = S.team === 1 ? -1 : 1, neig = (quer ? 50 : 62) * Math.PI / 180, ziel = new THREE.Vector3(0, 0, s * (quer ? 2.2 : 1.2));
     const richtung = new THREE.Vector3(0, Math.sin(neig), s * Math.cos(neig));
-    const ecken = [[-9.6, -16.6], [9.6, -16.6], [-9.6, 16.6], [9.6, 16.6]].map(([x, z]) => new THREE.Vector3(x, 0, z)).concat([new THREE.Vector3(0, 4, -s * 13)]);
+    const ecken = [[-9.3, -16.3], [9.3, -16.3], [-9.3, 16.3], [9.3, 16.3]].map(([x, z]) => new THREE.Vector3(x, 0, z)).concat([new THREE.Vector3(0, 3, -s * 14)]);
     let d = 20;
     for (; d < 120; d += 0.5) {
       k.position.copy(ziel).addScaledVector(richtung, d); k.lookAt(ziel); k.updateMatrixWorld(); k.updateProjectionMatrix();
       if (ecken.every(p => { const v = p.clone().project(k); return Math.abs(v.x) <= 1 && Math.abs(v.y) <= 1; })) break;
     }
-    k.setViewOffset(w, rh, 0, -oben, w, h);
+    k.setViewOffset(rw, rh, 0, -oben, w, h);
     k.updateProjectionMatrix();
   } else { k.aspect = w / h; k.fov = 45; k.clearViewOffset(); k.updateProjectionMatrix(); }
 }
@@ -631,7 +802,9 @@ function partikel(x, y, z, farbe, n, kraft, groesse, dauer, schwer) {
     S.partikel.push({ m, v: new THREE.Vector3(Math.cos(w) * kraft * (0.4 + Math.random()), kraft * (0.5 + h * 1.2), Math.sin(w) * kraft * (0.4 + Math.random())), t: 0, d: (dauer || 0.6) * (0.7 + Math.random() * 0.6), s, schwer: schwer == null ? 9 : schwer });
   }
 }
-function blitzMesh(m, d, wachs) { S.szene.add(m); S.blitze.push({ m, t: 0, d, wachs: wachs || 0, s0: m.scale.clone() }); return m; }
+function blitzMesh(m, d, wachs) {
+  m.traverse(o => { if (o.material && !o.material.userData.eigen) { o.material = o.material.clone(); o.material.userData = { eigen: 1 }; } });
+  S.szene.add(m); S.blitze.push({ m, t: 0, d, wachs: wachs || 0, s0: m.scale.clone() }); return m; }
 function ringEffekt(x, z, rad, farbe, d) {
   const m = new THREE.Mesh(GEO.ring, new THREE.MeshBasicMaterial({ color: farbe, transparent: true, side: THREE.DoubleSide, depthWrite: false }));
   m.rotation.x = -Math.PI / 2; m.position.set(x, 0.12, z); m.scale.setScalar(rad * 0.3);
@@ -666,6 +839,8 @@ export function effekte(liste, meinTeam) {
       else if (f.key === 'elsa') { for (let i = 0; i < 9; i++) { const o = new THREE.Mesh(new THREE.OctahedronGeometry(1), new THREE.MeshLambertMaterial({ color: '#e1f5fe', emissive: '#4fc3f7', emissiveIntensity: 0.4, transparent: true, opacity: 0.85 })); const w = i / 9 * 6.28, rr = Math.random() * f.rad * 0.8; o.position.set(x + Math.cos(w) * rr, 0.6, z + Math.sin(w) * rr); o.scale.set(0.3, 0.9, 0.3); blitzMesh(o, 4); } partikel(x, 0.5, z, '#ffffff', 30, 3, 0.1, 1, 2); }
       else if (f.key === 'snap') { partikel(x, 0.5, z, '#8d6e63', 60, 3, 0.1, 1.4, -1); scheibeEffekt(x, z, f.rad, '#ffffff', 0.25, 0.8); }
       else if (f.key === 'pilz') partikel(x, 0.3, z, '#ff8a80', 24, 2.5, 0.18, 0.8, -2);
+      else if (f.key === 'senzu') partikel(x, 0.3, z, '#b9f6ca', 40, 2.5, 0.14, 1, -3);
+      else if (f.key === 'panzer') { const p = FIGUREN.panzer(); p.position.set(x, 0, z); blitzMesh(p, 0.6, 0); partikel(x, 0.5, z, '#2979ff', 40, 7, 0.22, 0.7); partikel(x, 0.5, z, '#ffffff', 20, 6, 0.15, 0.6); }
     } else if (f.a === 'knall') { scheibeEffekt(x, z, f.rad, f.col || '#ffcc80', 0.35, 0.5); ringEffekt(x, z, f.rad, '#ffffff', 0.35); partikel(x, 0.4, z, f.col || '#ffab40', 10 + f.rad * 6, 4, 0.14, 0.45); }
     else if (f.a === 'hieb') partikel(x, 0.8, z, f.col || '#ffffff', 5, 2.5, 0.08, 0.3);
     else if (f.a === 'strahl') strahl(x, 1, z, wx(f.tx), 0.8, wz(f.ty), f.col, f.dick > 0.3 ? 0.7 : 0.12, f.dick > 0.3 ? 0.5 : 0.25);
@@ -844,6 +1019,7 @@ function synchron(A, dt, meinTeam) {
     if (e.key === 'storm' && md.armR) md.armR.rotation.x = -1.2 - h * 0.3;
     if (innen) innen.position.z = h * 0.15;
     if (md.rotor) md.rotor.rotation.y += dt * 30;
+    if (md.maulO) { const w = 0.15 + Math.abs(Math.sin(S.zeit * 12)) * 0.45; md.maulO.rotation.x = -w; md.maulU.rotation.x = w; }
     if (md.fluegel) { const fl = Math.sin(S.zeit * 8 + o.lauf) * 0.5; md.fluegel[0].rotation.z = fl; md.fluegel[1].rotation.z = -fl; }
     if (md.ball) { const l = e.lade || 0; md.ball.scale.setScalar(0.02 + l * 0.22); md.ball.visible = l > 0.05; }
     if (e.key === 'creeper' && md.koerper) { const n = S.objekte.get(e.id); const s = 1 + (e.angriff ? 0.25 : 0); md.inner.scale.setScalar(md.skala * 0.95 * s); }

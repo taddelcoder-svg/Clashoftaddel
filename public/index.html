@@ -141,6 +141,75 @@
   .emotes button { width: 44px; height: 44px; border: 0; border-radius: 10px; background: rgba(255,255,255,.12); font-family: var(--emoji); font-size: 1.5rem; }
   .aufgeben { position: absolute; left: 8px; top: 4px; min-width: 40px; min-height: 40px; border-radius: 12px; border: 2px solid rgba(255,255,255,.15); background: rgba(0,0,0,.45); font-family: var(--emoji); font-size: 1rem; }
 
+
+  /* iPad & Tablets quer: Karten als Seitenleiste rechts, Arena über die volle Höhe */
+  @media (orientation: landscape) and (min-width: 700px) and (min-height: 560px) {
+    #kampf { --leiste: clamp(270px, 30vw, 380px); }
+    #kampf.an { display: block; }
+    #kampf .hud { position: absolute; left: 0; top: 0; right: var(--leiste); }
+    #arenaBox { position: absolute; left: 0; top: 0; bottom: 0; right: var(--leiste); }
+    .hand-bereich { position: absolute; right: 0; top: 0; bottom: 0; width: var(--leiste); display: flex; flex-direction: column; justify-content: center; gap: 10px;
+      border-top: 0; border-left: 4px solid #0b1450; padding: 12px 14px calc(12px + env(safe-area-inset-bottom)); }
+    .hand { grid-template-columns: repeat(2, 1fr); max-width: none; width: 100%; gap: 10px; }
+    .naechste { grid-column: 1 / -1; flex-direction: row; justify-content: center; gap: 10px; order: 9; }
+    .naechste .karte { width: 26%; }
+    .hand .karte .nm { font-size: .8rem; }
+    .hand .kosten { width: 30px; height: 34px; font-size: 1.15rem; }
+    .elixier { max-width: none; width: 100%; }
+  }
+
+
+  /* Level, Kopien, Gold */
+  .karte .stufe { position: absolute; right: 3px; top: 3px; z-index: 3; font-size: .55rem; font-weight: 900; padding: 1px 4px; border-radius: 6px; background: rgba(0,0,0,.65); color: #ffe680; }
+  .kopien { position: relative; display: block; height: 14px; margin: 4px 2px 0; border-radius: 7px; background: rgba(0,0,0,.55); overflow: hidden; border: 2px solid #0b1450; }
+  .karte .kopien { position: absolute; left: 3px; right: 3px; bottom: 23%; margin: 0; z-index: 3; height: 12px; }
+  .kopien i { position: absolute; left: 0; top: 0; bottom: 0; background: linear-gradient(180deg, #7fb6ff, #2f7bf6); }
+  .kopien.bereit i { background: linear-gradient(180deg, #a5f27b, #2fae3a); }
+  .kopien b { position: relative; display: block; text-align: center; font-size: .55rem; line-height: 9px; font-weight: 900; text-shadow: 0 1px 0 #000; }
+  .kopien.gross { width: 220px; height: 22px; margin: 10px auto 0; } .kopien.gross b { font-size: .85rem; line-height: 18px; }
+  .karte .pfeil { position: absolute; right: 3px; bottom: 36%; z-index: 4; width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; background: #2fae3a; border: 2px solid #0b3d12; font-size: .7rem; font-weight: 900; animation: hupf .8s ease-in-out infinite alternate; }
+  @keyframes hupf { to { transform: translateY(-3px); } }
+  .knopf.gruen { border-color: #0b3d12; background: linear-gradient(180deg, #a5f27b 0%, #5fd34a 48%, #3cb52e 52%, #2a9a22 100%); box-shadow: inset 0 3px 0 rgba(255,255,255,.5), 0 4px 0 #0b3d12; -webkit-text-stroke-color: rgba(10,50,10,.8); text-shadow: 0 2px 0 rgba(10,50,10,.8); }
+  .topleiste { display: flex; justify-content: flex-end; margin-bottom: -8px; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px 4px 8px; border-radius: 99px; background: rgba(0,0,0,.45); border: 2px solid rgba(255,255,255,.15); font-family: var(--schrift); font-size: 1.05rem; color: #ffe680; text-shadow: 0 2px 0 #000; }
+  /* Truhen */
+  .truhen { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .truhe-slot { position: relative; aspect-ratio: 1 / 1.05; border-radius: 14px; border: 3px solid #0b1450; padding: 4px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
+    background: linear-gradient(180deg, rgba(60,85,190,.92), rgba(25,40,115,.95)); box-shadow: inset 0 2px 0 rgba(255,255,255,.2), 0 4px 0 rgba(0,0,0,.4); overflow: hidden; }
+  .truhe-slot img { position: absolute; top: 2%; left: 8%; width: 84%; filter: drop-shadow(0 4px 3px rgba(0,0,0,.45)); }
+  .truhe-slot .tname { position: relative; font-size: .55rem; font-weight: 900; text-shadow: 0 1px 0 #000; }
+  .truhe-slot .tzeit { position: relative; font-family: var(--schrift); font-size: .78rem; color: #fff; text-shadow: 0 2px 0 #000; }
+  .truhe-slot.leer { background: rgba(0,0,0,.3); border-style: dashed; border-color: rgba(255,255,255,.2); justify-content: center; box-shadow: none; }
+  .truhe-slot.leer .tname { font-size: .7rem; opacity: .7; } .truhe-slot.leer .tzeit { font-family: inherit; font-size: .6rem; opacity: .6; font-weight: 700; }
+  .truhe-slot.laeuft { border-color: #ffca28; }
+  .truhe-slot.fertig { border-color: #5fd34a; background: linear-gradient(180deg, #5fd34a, #227a1c); animation: glimmen 1s ease-in-out infinite alternate; }
+  .truhe-slot.fertig img { animation: hupf .5s ease-in-out infinite alternate; }
+  @keyframes glimmen { from { box-shadow: 0 0 0 rgba(95,211,74,.0), 0 4px 0 rgba(0,0,0,.4); } to { box-shadow: 0 0 22px rgba(140,255,110,.8), 0 4px 0 rgba(0,0,0,.4); } }
+  #truhenOverlay { z-index: 20; cursor: pointer; }
+  .truhen-buehne { text-align: center; width: min(420px, 100%); }
+  .gross-truhe { width: min(280px, 70vw); filter: drop-shadow(0 20px 20px rgba(0,0,0,.5)); }
+  .gross-truhe.wackeln { animation: truheWackeln 1s ease-in-out infinite; }
+  .gross-truhe.auf { animation: truheAuf .5s cubic-bezier(.2,1.6,.4,1) both; }
+  @keyframes truheWackeln { 0%, 60%, 100% { transform: rotate(0) scale(1); } 70% { transform: rotate(-6deg) scale(1.05); } 80% { transform: rotate(6deg) scale(1.05); } 90% { transform: rotate(-3deg); } }
+  @keyframes truheAuf { 0% { transform: scale(1.3); filter: brightness(3) drop-shadow(0 0 40px #fff); } 100% { transform: scale(1); } }
+  .truhen-titel { font-size: 2rem; margin: 8px 0; }
+  .tipp { color: var(--text-weich); font-weight: 900; margin-top: 10px; animation: punkte2 1.2s ease-in-out infinite alternate; }
+  @keyframes punkte2 { from { opacity: .5; } to { opacity: 1; } }
+  .belohnung { font-size: 3rem; color: #ffe680; margin-top: 6px; animation: rein .4s cubic-bezier(.2,1.6,.4,1) both; }
+  .belohnung.klein { font-size: 1.8rem; }
+  .karte-gross { width: min(190px, 48vw); margin: 0 auto; animation: karteRein .5s cubic-bezier(.2,1.4,.4,1) both; }
+  .karte-gross .karte { box-shadow: 0 0 40px rgba(255,255,255,.4), 0 6px 0 rgba(0,0,0,.45); }
+  .karte-gross .karte .nm { font-size: .95rem; } .karte-gross .kosten { width: 34px; height: 38px; font-size: 1.3rem; }
+  .karte-gross.r3 .karte { box-shadow: 0 0 60px rgba(95,240,255,.9); } .karte-gross.r2 .karte { box-shadow: 0 0 50px rgba(197,92,255,.8); }
+  @keyframes karteRein { from { transform: translateY(80px) rotateY(180deg) scale(.4); opacity: 0; } to { transform: none; opacity: 1; } }
+  .kartenname { font-size: 1.6rem; }
+  .rar { font-weight: 900; } .rar.r0 { color: var(--r0); } .rar.r1 { color: var(--r1); } .rar.r2 { color: var(--r2); } .rar.r3 { color: var(--r3); }
+  .zusammen { display: grid; grid-template-columns: repeat(auto-fill, minmax(78px, 1fr)); gap: 8px; }
+  .zusammen div { display: flex; flex-direction: column; align-items: center; background: rgba(0,0,0,.35); border-radius: 12px; padding: 4px; }
+  .zusammen img { width: 64px; } .zusammen b { font-family: var(--schrift); font-size: 1.1rem; color: #ffe680; } .zusammen span { font-size: .65rem; font-weight: 800; }
+  .mini-truhe { width: 34px; vertical-align: middle; }
+  .toast { position: fixed; left: 50%; top: 18px; transform: translateX(-50%); z-index: 60; background: rgba(10,16,50,.92); border: 3px solid #0b1450; padding: 10px 16px; border-radius: 14px; font-weight: 900; animation: rein .3s ease both; white-space: nowrap; }
+
   /* Ergebnis */
   .overlay { position: fixed; inset: 0; background: radial-gradient(circle at 50% 40%, rgba(30,50,140,.75), rgba(5,8,30,.9)); display: none; place-items: center; z-index: 10; padding: 16px; }
   .overlay.an { display: grid; }
@@ -168,6 +237,7 @@
 <!-- Hauptmenü -->
 <section class="bildschirm" id="menu" aria-labelledby="titel">
   <div class="mitte">
+    <div class="topleiste"><span class="chip"><span style="font-family:var(--emoji)">🪙</span><b id="goldAnzeige">0</b></span></div>
     <div class="titel"><h1 id="titel">Clash of Taddel</h1><p>Duell im Multiversum</p></div>
     <div class="arena-schild">
       <div class="em" id="arenaEmoji" aria-hidden="true">🍄</div>
@@ -179,7 +249,7 @@
       <div class="troph"><span aria-hidden="true" style="font-family:var(--emoji)">🏆</span><span id="trophAnzeige">0</span></div>
     </div>
     <div class="platz"></div>
-    <div class="menu-karten" id="menuKarten" aria-hidden="true"></div>
+    <div class="truhen" id="truhen" aria-label="Truhen"></div>
     <button class="knopf" id="kiKnopf"><span class="em" aria-hidden="true">⚔️</span> Kampf</button>
     <div class="reihe">
       <button class="knopf blau" id="onlineKnopf"><span class="em" aria-hidden="true">🌐</span> Online</button>
@@ -193,7 +263,7 @@
 <!-- Deck -->
 <section class="bildschirm" id="deck" aria-labelledby="deckTitel">
   <div class="mitte">
-    <div class="kopfzeile"><button class="zurueck" data-zu="menu" aria-label="Zurück">←</button><h2 class="titelschrift" id="deckTitel">Kampfdeck</h2><span class="troph" id="deckSchnitt" style="font-size:.95rem;color:#f0a8ff"></span></div>
+    <div class="kopfzeile"><button class="zurueck" data-zu="menu" aria-label="Zurück">←</button><h2 class="titelschrift" id="deckTitel">Kampfdeck</h2><span class="troph" id="deckSchnitt" style="font-size:.95rem;color:#f0a8ff"></span><span class="chip"><span style="font-family:var(--emoji)">🪙</span><b id="goldDeck">0</b></span></div>
     <div class="deck-box" id="deckBox"><div class="deck-gitter" id="deckGitter"></div></div>
     <div class="info" id="kartenInfo"></div>
     <h2 class="titelschrift" style="margin:4px 0 0;font-size:1.2rem">Sammlung</h2>
@@ -244,6 +314,8 @@
     </div>
   </div>
 </section>
+
+<div class="overlay" id="truhenOverlay" role="dialog" aria-modal="true" aria-label="Truhe öffnen"><div class="truhen-buehne" id="truhenBuehne"></div></div>
 
 <div class="overlay" id="ergebnisOverlay" role="dialog" aria-modal="true" aria-labelledby="ergTitel">
   <div class="ergebnis">

@@ -45,11 +45,11 @@ function austragen(ws) {
 
 function kampfStarten(a, b) {
   austragen(a); austragen(b);
-  const sim = new COT.Sim([a.info.deck, b.info.deck]);
+  const sim = new COT.Sim([a.info.deck, b.info.deck], [a.info.stufen, b.info.stufen]);
   const k = { sim, spieler: [a, b], takt: 0, fertig: false };
   a.kampf = k; a.team = 0; b.kampf = k; b.team = 1;
   kaempfe.add(k);
-  for (const ws of k.spieler) sende(ws, { t: 'start', team: ws.team, gegner: k.spieler[1 - ws.team].info, ich: ws.info });
+  for (const ws of k.spieler) sende(ws, { t: 'start', team: ws.team, gegner: { name: k.spieler[1 - ws.team].info.name, troph: k.spieler[1 - ws.team].info.troph } });
   k.uhr = setInterval(() => kampfTakt(k), 1000 / 30);
 }
 
@@ -75,7 +75,9 @@ wss.on('connection', ws => {
     let m; try { m = JSON.parse(roh); } catch (e) { return; }
     if (!m || typeof m !== 'object') return;
     if (m.t === 'hallo') {
-      ws.info = { name: sauber(m.name), troph: Math.max(0, Math.min(99999, Math.floor(+m.troph || 0))), deck: COT.deckPruefen(m.deck) };
+      const deck = COT.deckPruefen(m.deck), stufen = {};
+      for (const k of deck) stufen[k] = Math.max(1, Math.min(COT.MAX_STUFE, Math.floor(+(m.stufen && m.stufen[k]) || 1)));
+      ws.info = { name: sauber(m.name), troph: Math.max(0, Math.min(99999, Math.floor(+m.troph || 0))), deck, stufen };
       return;
     }
     if (!ws.info) return;
